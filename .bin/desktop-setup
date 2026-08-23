@@ -28,11 +28,6 @@ pipewire \
 pipewire-pulse \
 wireplumber
 
-echo "Installing network tools..."
-sudo apt -y install \
-ifupdown2 \
-wpasupplicant
-
 echo "Installing power management..."
 sudo apt -y -t trixie-backports install \
 tlp \
