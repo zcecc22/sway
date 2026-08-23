@@ -1,0 +1,42 @@
+#!/bin/bash
+set -e
+
+sudo apt update
+
+echo "Installing desktop environment..."
+sudo apt -y install \
+sway \
+swayidle \
+swaylock \
+swaybg \
+xwayland \
+dbus-bin \
+autotiling \
+alacritty \
+tofi \
+waybar \
+firefox-esr \
+mako-notifier \
+wl-clipboard \
+brightnessctl \
+fonts-inconsolata \
+fonts-font-awesome
+
+echo "Installing audio stack..."
+sudo apt -y install \
+pipewire \
+pipewire-pulse \
+wireplumber
+
+echo "Installing network tools..."
+sudo apt -y install \
+ifupdown2 \
+wpasupplicant
+
+echo "Installing power management..."
+sudo apt -y -t trixie-backports install \
+tlp \
+tlp-pd \
+tlp-rdw
+
+echo "Done."

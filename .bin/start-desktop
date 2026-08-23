@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Wayland environment
+export XDG_SESSION_TYPE=wayland
+export XDG_CURRENT_DESKTOP=sway
+export MOZ_ENABLE_WAYLAND=1
+
+brightnessctl set 40%
+exec sway
