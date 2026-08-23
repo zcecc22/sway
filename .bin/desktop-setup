@@ -28,10 +28,4 @@ pipewire \
 pipewire-pulse \
 wireplumber
 
-echo "Installing power management..."
-sudo apt -y -t trixie-backports install \
-tlp \
-tlp-pd \
-tlp-rdw
-
 echo "Done."
