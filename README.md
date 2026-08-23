@@ -21,7 +21,7 @@ This repo is desktop-environment config only — it does not manage shell, edito
 ## Design decisions
 
 - **No display manager** — Sway starts directly from a TTY via `~/.bin/start-desktop`.
-- **No NetworkManager** — `ifupdown2` and `wpa_supplicant` are sufficient for a single machine and keep the service footprint minimal.
+- **Network and power management are out of scope** — the base system is expected to already have networking (no NetworkManager — `ifupdown2` + `wpa_supplicant`) and TLP/tlp-pd set up; `desktop-setup` only installs Sway and its companion apps.
 - **Solarized Dark everywhere** — consistent palette across Alacritty, Waybar, mako, swaylock, and tofi.
 
 ## Prerequisites
@@ -83,13 +83,6 @@ Brightness and volume keys work out of the box via `brightnessctl` and `wpctl`.
 | 5 min | Screen locks |
 | 10 min | Display powers off |
 | On suspend | Locks automatically |
-
-## Network
-
-Managed with `ifupdown2` and `wpa_supplicant`.
-
-- **Wired**: configure `/etc/network/interfaces`
-- **WiFi**: add credentials to `/etc/wpa_supplicant/wpa_supplicant.conf`, then bring up the interface with `ifup`
 
 ## Structure
 

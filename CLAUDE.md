@@ -2,9 +2,9 @@
 
 ## Philosophy
 - Sway desktop environment config only — no shell dotfiles, no dev tooling
-- One install script: `.bin/desktop-setup` (installs and configures the desktop env)
+- One install script: `.bin/desktop-setup` (installs Sway and its companion apps only)
 - Solarized Dark theme applied consistently across all tools
-- Network via ifupdown2 + wpa_supplicant (no NetworkManager)
+- Network and power management are assumed already configured on the base system (no NetworkManager; ifupdown2 + wpa_supplicant, TLP/tlp-pd) — this repo doesn't install or manage them
 - No display manager or auto-launch: start Sway manually via `~/.bin/start-desktop`
 
 ## System Components
@@ -12,7 +12,6 @@
 | Role | Application |
 |---|---|
 | Window Manager | Sway (Wayland) + autotiling |
-| Power Management | TLP + tlp-pd (power profiles via DBus) |
 | X11 Compatibility | XWayland |
 | Terminal | Alacritty |
 | App Launcher | tofi |
@@ -33,7 +32,7 @@ Laptop - includes brightness control (brightnessctl), battery status, lid handli
 - Startup brightness: 40% via brightnessctl
 - Tiling: autotiling daemon — split direction chosen automatically by container aspect ratio
 - Auto-lock: swayidle — lock after 5 min idle, display off after 10 min
-- Power profiles: power-profiles-daemon (provided by tlp-pd) surfaced in Waybar
+- Power profiles: Waybar surfaces power-profiles-daemon (expects tlp-pd already installed on the base system)
 - DBus/systemd env: `dbus-update-activation-environment` propagates `WAYLAND_DISPLAY`, `DISPLAY`, `XDG_CURRENT_DESKTOP` on startup (required for portals and screen sharing)
 
 ## Theme: Solarized Dark Palette
