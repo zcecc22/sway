@@ -15,7 +15,6 @@ This repo is desktop-environment config only — it does not manage shell, edito
 | Notifications | mako |
 | Screen Lock | swaylock + swayidle |
 | Audio | PipeWire |
-| Browser | Firefox ESR |
 | Fonts | Inconsolata, Font Awesome |
 
 ## Design decisions
@@ -60,19 +59,19 @@ Start Sway from a TTY:
 | Key | Action |
 |---|---|
 | `Super+Return` | Open terminal |
-| `Super+d` | App launcher |
-| `Super+Shift+q` | Close window |
-| `Super+Arrow` | Focus window |
-| `Super+Shift+Arrow` | Move window |
-| `Super+1–9` | Switch workspace |
-| `Super+Shift+1–9` | Move window to workspace |
-| `Super+f` | Fullscreen |
-| `Super+Space` | Toggle floating |
-| `Super+Shift+Space` | Toggle focus tiling / floating |
-| `Super+r` | Resize mode (arrows to resize, Esc to exit) |
+| `Super+p` | App launcher |
+| `Super+q` | Close window |
+| `Super+1–5` | Switch workspace |
+| `Super+Shift+1–5` | Move window to workspace |
+| `Super+t` | Tile / split layout |
+| `Super+m` | Tabbed layout |
+| `Super+f` | Toggle floating |
+| `Super+Tab` | Focus next window |
 | `Super+l` | Lock screen |
 | `Super+Shift+c` | Reload config |
-| `Super+Shift+e` | Exit Sway |
+| `Super+Shift+q` | Exit Sway |
+
+Focus follows the mouse and tiled window borders resize by dragging with the mouse — no dedicated keybindings for either, matching the companion dwm config.
 
 Brightness and volume keys work out of the box via `brightnessctl` and `wpctl`.
 

@@ -15,13 +15,13 @@ window#waybar {
 
 #workspaces button {
     padding: 0 8px;
-    color: #586e75;
+    color: #839496;
     background: transparent;
 }
 
 #workspaces button.focused {
     color: #93a1a1;
-    background-color: #073642;
+    background-color: #174956;
 }
 
 #workspaces button.urgent {

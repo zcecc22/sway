@@ -3,11 +3,18 @@
     "position": "top",
     "height": 28,
     "modules-left": ["sway/workspaces", "sway/mode"],
-    "modules-center": ["clock"],
-    "modules-right": ["power-profiles-daemon", "network", "pulseaudio", "backlight", "battery"],
+    "modules-center": ["sway/window"],
+    "modules-right": ["power-profiles-daemon", "battery", "backlight", "pulseaudio", "network", "clock"],
 
     "sway/workspaces": {
-        "disable-scroll": true
+        "disable-scroll": true,
+        "persistent-workspaces": {
+            "1": [], "2": [], "3": [], "4": [], "5": []
+        }
+    },
+
+    "sway/window": {
+        "max-length": 50
     },
 
     "clock": {
