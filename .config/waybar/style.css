@@ -1,8 +1,8 @@
 /* ~/.config/waybar/style.css - Solarized Dark */
 
 * {
-    font-family: Inconsolata, "Font Awesome 6 Free";
-    font-size: 13px;
+    font-family: Inconsolata, "FontAwesome";
+    font-size: 18px;
     border: none;
     border-radius: 0;
     min-height: 0;
@@ -32,8 +32,7 @@ window#waybar {
 #battery,
 #network,
 #pulseaudio,
-#backlight,
-#power-profiles-daemon {
+#backlight {
     padding: 0 10px;
     color: #93a1a1;
 }
@@ -52,12 +51,4 @@ window#waybar {
 
 #pulseaudio.muted {
     color: #586e75;
-}
-
-#power-profiles-daemon.performance {
-    color: #dc322f;
-}
-
-#power-profiles-daemon.power-saver {
-    color: #859900;
 }

@@ -13,7 +13,6 @@ This repo is desktop-environment config only — it does not manage shell, edito
 | Status Bar | Waybar |
 | App Launcher | tofi |
 | Notifications | mako |
-| Screen Lock | swaylock + swayidle |
 | Audio | PipeWire |
 | Fonts | Inconsolata, Font Awesome |
 
@@ -21,7 +20,7 @@ This repo is desktop-environment config only — it does not manage shell, edito
 
 - **No display manager** — Sway starts directly from a TTY via `~/.bin/start-desktop`.
 - **Network and power management are out of scope** — the base system is expected to already have networking (no NetworkManager — `ifupdown2` + `wpa_supplicant`) and TLP/tlp-pd set up; `desktop-setup` only installs Sway and its companion apps.
-- **Solarized Dark everywhere** — consistent palette across Alacritty, Waybar, mako, swaylock, and tofi.
+- **Solarized Dark everywhere** — consistent palette across Alacritty, Waybar, mako, and tofi.
 
 ## Prerequisites
 
@@ -66,22 +65,14 @@ Start Sway from a TTY:
 | `Super+t` | Tile / split layout |
 | `Super+m` | Tabbed layout |
 | `Super+f` | Toggle floating |
-| `Super+Tab` | Focus next window |
-| `Super+l` | Lock screen |
+| `Super+Left/Right/Up/Down` | Focus left/right/up/down |
+| `Super+Shift+Left/Right/Up/Down` | Move window left/right/up/down |
 | `Super+Shift+c` | Reload config |
 | `Super+Shift+q` | Exit Sway |
 
-Focus follows the mouse and tiled window borders resize by dragging with the mouse — no dedicated keybindings for either, matching the companion dwm config.
+Focus still follows the mouse, and tiled window borders resize by dragging with the mouse — no dedicated keybinding for resizing.
 
 Brightness and volume keys work out of the box via `brightnessctl` and `wpctl`.
-
-### Idle behavior
-
-| Idle time | Action |
-|---|---|
-| 5 min | Screen locks |
-| 10 min | Display powers off |
-| On suspend | Locks automatically |
 
 ## Structure
 
@@ -90,14 +81,15 @@ Brightness and volume keys work out of the box via `brightnessctl` and `wpctl`.
 ├── .bin/
 │   ├── desktop-setup                # Desktop env installer
 │   └── start-desktop                # Launch Sway
-└── .config/
-    ├── sway/config                  # Window manager
-    ├── alacritty/alacritty.toml     # Terminal
-    ├── waybar/config                # Status bar modules
-    ├── waybar/style.css             # Status bar styling
-    ├── mako/config                  # Notification daemon
-    ├── swaylock/config              # Lock screen
-    └── tofi/config                  # App launcher
+├── .config/
+│   ├── sway/config                  # Window manager
+│   ├── alacritty/alacritty.toml     # Terminal
+│   ├── waybar/config                # Status bar modules
+│   ├── waybar/style.css             # Status bar styling
+│   ├── mako/config                  # Notification daemon
+│   └── tofi/config                  # App launcher
+└── etc/
+    └── udev/rules.d/90-backlight.rules  # Backlight group perms (installed by desktop-setup)
 ```
 
 ## License

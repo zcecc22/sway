@@ -6,11 +6,10 @@ sudo apt update
 echo "Installing desktop environment..."
 sudo apt -y install \
 sway \
-swayidle \
-swaylock \
 swaybg \
 xwayland \
 dbus-bin \
+dbus-x11 \
 autotiling \
 alacritty \
 tofi \
@@ -26,5 +25,15 @@ sudo apt -y install \
 pipewire \
 pipewire-pulse \
 wireplumber
+
+echo "Enabling audio services..."
+systemctl --user enable --now pipewire pipewire-pulse wireplumber
+
+echo "Granting brightness control to the video group..."
+sudo install -m 644 etc/udev/rules.d/90-backlight.rules /etc/udev/rules.d/90-backlight.rules
+sudo udevadm control --reload-rules
+sudo udevadm trigger --subsystem-match=backlight
+sudo usermod -aG video "$USER"
+echo "Added $USER to the video group - log out and back in for brightnessctl to work without sudo."
 
 echo "Done."
