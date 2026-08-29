@@ -1,7 +1,7 @@
 # ~/.config/alacritty/alacritty.toml
 
 [font]
-size = 16.0
+size = 20.0
 
 [font.normal]
 family = "Inconsolata"

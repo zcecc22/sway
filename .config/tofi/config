@@ -1,7 +1,7 @@
 # ~/.config/tofi/config
 
 font = Inconsolata
-font-size = 19
+font-size = 20
 
 background-color = #002b36
 text-color = #839496
