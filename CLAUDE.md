@@ -31,7 +31,7 @@ Laptop - includes brightness control (brightnessctl), battery status, lid handli
 - Display scaling: `output <name> scale 1.5` (HiDPI panel)
 - Borders: 4px pixel border, no gaps
 - Workspaces: 5 (matches dwm's 5 tags)
-- Tiling: autotiling daemon — split direction chosen automatically by container aspect ratio; Mod+t = split/tile (`layout toggle split`), Mod+m = tabbed (monocle analog), Mod+f = floating toggle
+- Tiling: autotiling daemon — split direction chosen automatically by container aspect ratio; Mod+t = split/tile (`layout toggle split`), Mod+m = fullscreen toggle, Mod+f = floating toggle
 - Keybindings: letters remapped to match this repo's companion dwm config — Mod+p launcher, Mod+q kill, Mod+Shift+q exit session; Mod+Shift+c reload is a sway-only addition with no dwm analog
 - Focus/move: Mod+Arrow keys move focus between tiled windows, Mod+Shift+Arrow keys move the focused window; focus still follows mouse hover (sway default), tiled window borders resize by mouse drag
 - Touchpad: tap-to-click via `input type:touchpad { tap enabled }`
