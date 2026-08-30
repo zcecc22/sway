@@ -84,6 +84,12 @@ exec mako
 exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP DISPLAY
 exec autotiling
 
+# Idle - blank display after inactivity, matching dwm's `xset dpms 300 600 600`
+exec swayidle -w \
+    timeout 300 'swaymsg "output * power off"' \
+    resume 'swaymsg "output * power on"' \
+    before-sleep 'swaymsg "output * power off"'
+
 # Status bar
 bar {
     swaybar_command waybar

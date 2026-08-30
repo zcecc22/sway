@@ -35,6 +35,7 @@ Laptop - includes brightness control (brightnessctl), battery status, lid handli
 - Keybindings: letters remapped to match this repo's companion dwm config — Mod+p launcher, Mod+q kill, Mod+Shift+q exit session; Mod+Shift+c reload is a sway-only addition with no dwm analog
 - Focus/move: Mod+Arrow keys move focus between tiled windows, Mod+Shift+Arrow keys move the focused window; focus still follows mouse hover (sway default), tiled window borders resize by mouse drag
 - Touchpad: tap-to-click via `input type:touchpad { tap enabled }`
+- Idle: `swayidle` powers the display off after 300s (5 min) inactivity, matching dwm's `xset dpms 300 600 600` standby timeout, and powers it back on on resume or before-sleep; no lock daemon, matching dwm (which has none either)
 - DBus/systemd env: `dbus-update-activation-environment` propagates `WAYLAND_DISPLAY`, `DISPLAY`, `XDG_CURRENT_DESKTOP` on startup (required for portals and screen sharing)
 
 ## Theme: Solarized Dark Palette

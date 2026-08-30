@@ -21,6 +21,7 @@ This repo is desktop-environment config only — it does not manage shell, edito
 - **No display manager** — Sway starts directly from a TTY via `~/.bin/start-desktop`.
 - **Network and power management are out of scope** — the base system is expected to already have networking (no NetworkManager — `ifupdown2` + `wpa_supplicant`) and TLP/tlp-pd set up; `desktop-setup` only installs Sway and its companion apps.
 - **Solarized Dark everywhere** — consistent palette across Alacritty, Waybar, mako, and tofi.
+- **Screen blanks but never locks** — `swayidle` powers the display off after 5 minutes idle, mirroring dwm's `xset dpms 300 600 600`; there's no lock daemon, matching dwm (which has none either).
 
 ## Prerequisites
 
