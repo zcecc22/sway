@@ -27,17 +27,17 @@ Laptop - includes brightness control (brightnessctl), battery status, lid handli
 - Mod key: Super/Logo
 - Wallpaper: solid solarized base03 (#002b36)
 - Startup brightness: 15% via brightnessctl
-- Display scaling: `output <name> scale 1.5` (HiDPI panel)
+- Display scaling: `output <name> scale 1.25` (HiDPI panel)
 - Borders: 4px pixel border on tiled windows (no gaps); floating windows use a `normal` border instead, restoring the titlebar as a drag handle
 - Workspaces: 5 (matches dwm's 5 tags)
-- Tiling: `sway-masterstack` daemon (i3ipc-based) — dwm-style master/stack layout, `nmaster=1`, `mfact=0.5` (even split, deliberately diverging from the companion dwm config's `mfact=0.6`); Mod+Tab cycles the bottom-of-stack window into master (dwm `cyclemaster` parity), Mod+m toggles monocle mode (scratchpad-based, since Sway has no native equivalent — sway's native fullscreen toggle is no longer bound to anything), Mod+t returns to master-stack mode, Mod+f = floating toggle
+- Tiling: `sway-masterstack` daemon (i3ipc-based) — dwm-style master/stack layout, `nmaster=1`, `mfact=0.5` (even split, deliberately diverging from the companion dwm config's `mfact=0.6`); Mod+Tab cycles the bottom-of-stack window into master (dwm `cyclemaster` parity), Mod+m toggles monocle mode (scratchpad-based, since Sway has no native equivalent — sway's native fullscreen toggle is no longer bound to anything), Mod+t returns to master-stack mode, Mod+f = floating toggle. A `sway-masterstack status` subcommand prints `[M]`/`[]=` for the focused workspace, driving a `custom/layout` waybar module — dwm-bar parity for the current mode.
 - Floating windows: `floating_modifier $mod normal` — Mod+left-drag moves, Mod+right-drag resizes, in addition to the titlebar
 - Keybindings: letters remapped to match this repo's companion dwm config — Mod+p launcher, Mod+q kill, Mod+Shift+q exit session; Mod+Shift+c reload is a sway-only addition with no dwm analog
 - Focus: `Mod+Tab` is the only keyboard focus-cycling binding (no directional arrow-key focus/move, matching dwm which has none either); focus still follows mouse hover (sway default), tiled window borders resize by mouse drag
 - Touchpad: tap-to-click via `input type:touchpad { tap enabled }`
 - Idle: `swayidle` powers the display off after 300s (5 min) inactivity, matching dwm's `xset dpms 300 600 600` standby timeout, and powers it back on on resume or before-sleep; no lock daemon, matching dwm (which has none either)
 - Notifications: no notification daemon — mako was removed; dwm has none either
-- DBus/systemd env: `dbus-update-activation-environment` propagates `WAYLAND_DISPLAY`, `DISPLAY`, `XDG_CURRENT_DESKTOP` on startup (required for portals and screen sharing)
+- DBus/systemd env: `dbus-update-activation-environment` propagates `WAYLAND_DISPLAY`, `DISPLAY`, `XDG_CURRENT_DESKTOP` on startup, required by dbus-activated systemd user units (PipeWire, WirePlumber) — no portal package (`xdg-desktop-portal-wlr`) is installed, so this is not currently doing anything for screen sharing/file pickers
 - Fonts: Alacritty (terminal) is 12pt Inconsolata; Sway's own UI font (titlebars) and Waybar are both 20pt — an intentional split, not an inconsistency
 
 ## Theme: Solarized Dark Palette

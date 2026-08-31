@@ -5,13 +5,20 @@ set $mod Mod4
 
 # Terminal and launcher
 set $term alacritty
-set $menu tofi-drun | xargs swaymsg exec --
+set $menu tofi-drun
 
 # Wallpaper
 output * bg #002b36 solid_color
 
-# HiDPI display scaling (verify output name via `swaymsg -t get_outputs`)
-output eDP-1 scale 1.5
+# HiDPI display scaling. eDP-1 is matched by connector name -- if it ever
+# fails silently (renamed/redetected panel), check `swaymsg -t get_outputs`
+# and consider matching by "Make Model Serial" instead, which survives
+# connector renumbering.
+output eDP-1 scale 1.25
+
+# Cursor theme/size, so XWayland and GTK apps don't fall back to an
+# undersized cursor at HiDPI scale
+seat seat0 xcursor_theme Adwaita 24
 
 # Font
 font pango:Inconsolata 20
@@ -33,13 +40,14 @@ floating_modifier $mod normal
 # Touchpad
 input type:touchpad {
     tap enabled
+    middle_emulation enabled
 }
 
 # Key bindings - basics
 bindsym $mod+Return exec $term
 bindsym $mod+p exec $menu
 bindsym $mod+q kill
-bindsym $mod+Shift+q exec swaymsg exit
+bindsym $mod+Shift+q exit
 bindsym $mod+Shift+c reload
 
 # Workspaces
@@ -65,7 +73,7 @@ bindsym $mod+Tab exec $HOME/.bin/sway-masterstack cycle
 # Laptop keys
 bindsym XF86MonBrightnessUp exec brightnessctl set +5%
 bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
-bindsym XF86AudioRaiseVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
+bindsym XF86AudioRaiseVolume exec wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
 bindsym XF86AudioLowerVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
 bindsym XF86AudioMute exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
 
@@ -73,10 +81,14 @@ bindsym XF86AudioMute exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
 exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP DISPLAY
 exec $HOME/.bin/sway-masterstack
 
-# Idle - blank display after inactivity, matching dwm's `xset dpms 300 600 600`
+# Idle - blank display after inactivity, matching dwm's `xset dpms 300 600 600`.
+# after-resume covers waking from suspend even when the idle timeout never
+# fired (resume alone only pairs with a timeout that actually elapsed, so
+# without this a suspend-before-300s-idle leaves the display off on wake).
 exec swayidle -w \
     timeout 300 'swaymsg "output * power off"' \
     resume 'swaymsg "output * power on"' \
+    after-resume 'swaymsg "output * power on"' \
     before-sleep 'swaymsg "output * power off"'
 
 # Status bar

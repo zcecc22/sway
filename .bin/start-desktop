@@ -6,4 +6,10 @@ export XDG_CURRENT_DESKTOP=sway
 export MOZ_ENABLE_WAYLAND=1
 
 brightnessctl set 15%
-exec sway
+
+# sway's own log and sway-masterstack's swallowed per-event error prints
+# (it stays alive across bad events, so these are its only failure signal)
+# both go to stderr; without this they'd land on a TTY nothing is watching
+# and vanish when the session ends.
+mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}"
+exec sway "$@" >"${XDG_CACHE_HOME:-$HOME/.cache}/sway.log" 2>&1

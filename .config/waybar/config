@@ -1,10 +1,14 @@
 {
     "layer": "top",
     "position": "top",
-    "height": 30,
-    "modules-left": ["sway/workspaces"],
+    "modules-left": ["custom/layout", "sway/workspaces"],
     "modules-center": ["sway/window"],
     "modules-right": ["battery", "backlight", "pulseaudio", "network", "clock"],
+
+    "custom/layout": {
+        "exec": "$HOME/.bin/sway-masterstack status",
+        "interval": 1
+    },
 
     "sway/workspaces": {
         "disable-scroll": true,

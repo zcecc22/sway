@@ -14,14 +14,26 @@ style = "Regular"
 family = "Inconsolata"
 style = "Bold"
 
+[window]
+padding = { x = 4, y = 2 }
+
+[cursor]
+style = { shape = "Block", blinking = "Off" }
+
 # Solarized Dark
 [colors.primary]
 background = "#002b36"
 foreground = "#839496"
+bright_foreground = "#93a1a1"
+dim_foreground = "#586e75"
 
 [colors.cursor]
 text = "#002b36"
 cursor = "#839496"
+
+[colors.selection]
+background = "#073642"
+text = "CellForeground"
 
 [colors.normal]
 black = "#073642"

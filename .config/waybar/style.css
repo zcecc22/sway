@@ -13,6 +13,21 @@ window#waybar {
     color: #839496;
 }
 
+tooltip {
+    background-color: #002b36;
+    border: 1px solid #073642;
+}
+
+tooltip label {
+    color: #839496;
+}
+
+#custom-layout,
+#window {
+    padding: 0 10px;
+    color: #93a1a1;
+}
+
 #workspaces button {
     padding: 0 8px;
     color: #839496;
@@ -41,8 +56,16 @@ window#waybar {
     color: #b58900;
 }
 
+@keyframes blink {
+    to {
+        color: #002b36;
+        background-color: #dc322f;
+    }
+}
+
 #battery.critical {
     color: #dc322f;
+    animation: blink 1s steps(2) infinite alternate;
 }
 
 #network.disconnected {

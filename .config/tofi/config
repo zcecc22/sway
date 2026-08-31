@@ -21,3 +21,9 @@ padding-top = 16
 result-spacing = 8
 
 prompt-text = "run: "
+
+# Launch the selected entry directly via its desktop file, instead of
+# printing to stdout for the sway config to pipe into `swaymsg exec`.
+# Also avoids `xargs swaymsg exec --` running with an empty command (and
+# logging a spurious error) when Escape is pressed to cancel.
+drun-launch = true

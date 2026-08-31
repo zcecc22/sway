@@ -7,6 +7,8 @@
     sway-masterstack monocle    Mod+m: enter monocle on the focused workspace
     sway-masterstack tile       Mod+t: return the focused workspace to
                                  master-stack mode
+    sway-masterstack status     print "[M]" or "[]=" for the focused
+                                 workspace, for a waybar custom module
 
 Mirrors the companion dwm config's nmaster=1 and dwm's custom
 cyclemaster()/pop() (Mod+Tab promotes the bottom of the stack into master),
@@ -66,8 +68,21 @@ def mono_parked_pattern(ws_name):
 
 
 def find_one(con, mark):
-    matches = con.find_marked(mark)
+    # Anchored + escaped: i3ipc's find_marked does an unanchored regex
+    # search, so an un-anchored "_ms_master_1" would also match
+    # "_ms_master_10" once workspace names get into double digits.
+    matches = con.find_marked(f"^{re.escape(mark)}$")
     return matches[0] if matches else None
+
+
+def tiled_leaves(ws):
+    # ws.leaves() includes floating windows (i3ipc's Con.__iter__ walks
+    # floating_nodes at every level too) -- confirmed against the
+    # installed i3ipc source. Callers that mean "the tiled windows on this
+    # workspace" need this instead, matching what on_window_new already
+    # checks manually via ws.floating_nodes.
+    floating_ids = {n.id for f in ws.floating_nodes for n in [f, *f.leaves()]}
+    return [c for c in ws.leaves() if c.id not in floating_ids]
 
 
 def settle(i3, ws_id, predicate, tries=20, pause=0.01):
@@ -252,7 +267,7 @@ def fixup_workspace(i3, ws):
     ws_name = ws.name
     if find_one(ws, mark_mono_active(ws_name)) is not None:
         return  # monocle bookkeeping is separate, see fixup during monocle
-    tiled = ws.leaves()
+    tiled = tiled_leaves(ws)
     if not tiled:
         return
     master = get_master(ws)
@@ -313,7 +328,7 @@ def enter_monocle(i3):
     ws = ws_by_name_or_focused(i3)
     if ws is None or find_one(ws, mark_mono_active(ws.name)) is not None:
         return
-    tiled = ws.leaves()
+    tiled = tiled_leaves(ws)
     if len(tiled) < 2:
         return
     focused = i3.get_tree().find_focused()
@@ -336,11 +351,17 @@ def exit_monocle(i3):
         return
     ws_name = ws.name
     active = find_one(ws, mark_mono_active(ws_name))
-    if active is None:
-        return  # not in monocle
-    i3.command(f'[con_id={active.id}] unmark {mark_mono_active(ws_name)}')
-
     parked = i3.get_tree().find_marked(mono_parked_pattern(ws_name))
+    if active is None and not parked:
+        # Not in monocle. Note: active alone can be None while parked
+        # windows still exist -- e.g. the active monocle window was
+        # closed, which drops its mark along with it but leaves every
+        # parked window stranded in the scratchpad. Checking parked here
+        # too is what lets this restore them instead of silently no-oping.
+        return
+    if active is not None:
+        i3.command(f'[con_id={active.id}] unmark {mark_mono_active(ws_name)}')
+
     for c in parked:
         # Give the container a real tiling context before asking it to
         # stop floating -- it has none while still hidden in the scratchpad.
@@ -387,7 +408,7 @@ def exit_monocle(i3):
             c for c in ws.find_marked(mark_stack(ws_name))
             if not c.nodes and c.id != (master.id if master else None)
         ]
-        others += [c for c in ws.leaves() if master is None or c.id != master.id]
+        others += [c for c in tiled_leaves(ws) if master is None or c.id != master.id]
         seen = set()
         ordered = []
         for c in others:
@@ -526,6 +547,16 @@ def on_window_floating(i3, event):
         fixup_workspace(i3, ws)
 
 
+def print_status(i3):
+    """Print the focused workspace's current mode, for a waybar custom
+    module: `[M]` in monocle (dwm parity), `[]=` in master-stack."""
+    ws = ws_by_name_or_focused(i3)
+    if ws is not None and find_one(ws, mark_mono_active(ws.name)) is not None:
+        print("[M]")
+    else:
+        print("[]=")
+
+
 def run_daemon():
     i3 = Connection()
 
@@ -554,8 +585,10 @@ def main():
         enter_monocle(Connection())
     elif args[0] == "tile":
         exit_monocle(Connection())
+    elif args[0] == "status":
+        print_status(Connection())
     else:
-        print(f"usage: {sys.argv[0]} [cycle|monocle|tile]", file=sys.stderr)
+        print(f"usage: {sys.argv[0]} [cycle|monocle|tile|status]", file=sys.stderr)
         sys.exit(1)
 
 
