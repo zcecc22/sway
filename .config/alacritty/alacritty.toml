@@ -4,7 +4,7 @@
 TERM = "xterm-256color"
 
 [font]
-size = 20.0
+size = 12.0
 
 [font.normal]
 family = "Inconsolata"
