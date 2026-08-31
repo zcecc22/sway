@@ -14,6 +14,7 @@ Monocle has no native Sway equivalent (Sway's tabbed/stacking layouts always
 draw a tab strip; dwm's monocle has none) so it's built on the scratchpad:
 only the active window sits on the workspace, the rest are parked hidden.
 """
+import re
 import sys
 
 from i3ipc import Connection, Event
@@ -22,13 +23,42 @@ MFACT = 0.6  # dwm config.h: mfact. nmaster is fixed at 1 -- the dwm build
              # this mirrors has no incnmaster binding, so master is always
              # a single leaf, never a wrapper of several.
 
-MARK_MASTER = "_ms_master"
-MARK_STACK = "_ms_stack"    # kept on whichever child currently tops the stack
-MONO_ACTIVE = "_ms_mono_active"
+MARK_MASTER_PREFIX = "_ms_master_"
+MARK_STACK_PREFIX = "_ms_stack_"    # tops the stack, within a workspace
+MONO_ACTIVE_PREFIX = "_ms_mono_active_"
+MONO_PARKED_PREFIX = "_ms_mono_parked_"
 
 
-def mono_parked_mark(ws_name):
-    return f"_ms_mono_parked_{ws_name}"
+def mark_master(ws_name):
+    # Marks are unique tree-wide in sway (see mono_parked_mark below) --
+    # confirmed live, a bare "_ms_master" mark gets stolen by whichever
+    # workspace most recently created a window, silently wiping every
+    # OTHER workspace's master/stack bookkeeping the moment a second
+    # workspace gets windows. Namespaced by workspace so each one owns its
+    # own master/stack marks independently.
+    return f"{MARK_MASTER_PREFIX}{ws_name}"
+
+
+def mark_stack(ws_name):
+    return f"{MARK_STACK_PREFIX}{ws_name}"
+
+
+def mark_mono_active(ws_name):
+    return f"{MONO_ACTIVE_PREFIX}{ws_name}"
+
+
+def mono_parked_mark(ws_name, con_id):
+    # Marks are unique tree-wide in sway: adding the same mark string to a
+    # second container silently steals it from whichever container held it
+    # before (confirmed live -- with one shared mark per workspace, only
+    # the LAST window parked for monocle ever kept it; every earlier one
+    # was left unmarked and unrecoverable). Each parked window gets its
+    # own mark, keyed by con_id, so this can't happen.
+    return f"{MONO_PARKED_PREFIX}{ws_name}_{con_id}"
+
+
+def mono_parked_pattern(ws_name):
+    return re.compile(rf"^{re.escape(MONO_PARKED_PREFIX)}{re.escape(ws_name)}_\d+$")
 
 
 def find_one(con, mark):
@@ -37,12 +67,19 @@ def find_one(con, mark):
 
 
 def get_master(ws):
-    return find_one(ws, MARK_MASTER)
+    return find_one(ws, mark_master(ws.name))
 
 
 def get_stack_wrapper(ws):
-    top = find_one(ws, MARK_STACK)
-    return top.parent if top else None
+    top = find_one(ws, mark_stack(ws.name))
+    if top is None or top.parent is None or top.parent.id == ws.id:
+        # A MARK_STACK leaf sitting directly under the workspace (no real
+        # nested wrapper) has top.parent == ws -- confirmed live, right
+        # after exit_monocle's scratchpad restore, every window lands as a
+        # flat workspace child (move to workspace never nests), so this
+        # was misread as "wrapper exists" and skipped ever creating one.
+        return None
+    return top.parent
 
 
 def ws_by_name_or_focused(i3, name=None):
@@ -67,10 +104,11 @@ def promote_to_master(i3, ws_id, target_id):
     top of the stack. Covers 0->1, 1->2, and N->N transitions; also used
     directly by `cycle` (target = bottom of stack)."""
     ws = i3.get_tree().find_by_id(ws_id)
+    ws_name = ws.name
     master = get_master(ws)
 
     if master is None:
-        i3.command(f'[con_id={target_id}] mark --add {MARK_MASTER}')
+        i3.command(f'[con_id={target_id}] mark --add {mark_master(ws_name)}')
         i3.command(f'[con_id={target_id}] resize set width 100 ppt')
         i3.command(f'[con_id={target_id}] focus')
         return
@@ -81,11 +119,14 @@ def promote_to_master(i3, ws_id, target_id):
 
     # Normalize: pull target out to a direct child of the workspace,
     # regardless of where it currently lives (brand new window, or buried
-    # in the stack for a `cycle`). This is a documented sway/i3 idiom.
-    i3.command(f'[con_id={target_id}] move to workspace current')
+    # in the stack for a `cycle`). Target ws_name explicitly rather than
+    # "workspace current" -- confirmed live that "current" means whichever
+    # workspace has global focus, not necessarily ws_id, and the two can
+    # differ (e.g. multi-output setups, or focus lagging an event).
+    i3.command(f'[con_id={target_id}] move to workspace {ws_name}')
 
     ws = i3.get_tree().find_by_id(ws_id)
-    master = find_one(ws, MARK_MASTER)
+    master = find_one(ws, mark_master(ws_name))
     wrapper = get_stack_wrapper(ws)
 
     if wrapper is None:
@@ -94,28 +135,40 @@ def promote_to_master(i3, ws_id, target_id):
         i3.command(f'[con_id={master.id}] split vertical')
         ws = i3.get_tree().find_by_id(ws_id)
         master = ws.find_by_id(master.id)
-        wrapper = master.parent
-        i3.command(f'[con_id={wrapper.id}] mark --add {MARK_STACK}')
+        # MARK_STACK belongs on the top-of-stack LEAF (get_stack_wrapper
+        # derives the wrapper as leaf.parent), not on the wrapper itself --
+        # matches how the N->N branch below re-tags it (line ~109).
+        i3.command(f'[con_id={master.id}] mark --add {mark_stack(ws_name)}')
     else:
-        top = find_one(ws, MARK_STACK)
-        i3.command(f'[con_id={master.id}] move to mark {MARK_STACK}')
-        # LIVE-VERIFY: "move to mark" insertion side is unconfirmed against
-        # a running Sway session -- correct to the top if it landed second.
+        top = find_one(ws, mark_stack(ws_name))
+        i3.command(f'[con_id={master.id}] move to mark {mark_stack(ws_name)}')
+        # Re-derive the wrapper fresh via the (still-marked) stack-top leaf
+        # rather than reusing the pre-move wrapper con_id: confirmed live
+        # that "move to mark" can invalidate/recreate the wrapper container
+        # when it pulls in a container from elsewhere in the tree (e.g.
+        # exit_monocle re-promoting several windows in a row), leaving the
+        # old id lookup return None and crash here.
         ws = i3.get_tree().find_by_id(ws_id)
-        wrapper2 = ws.find_by_id(wrapper.id)
-        if wrapper2.nodes and wrapper2.nodes[0].id != master.id:
+        wrapper2 = get_stack_wrapper(ws)
+        if wrapper2 is not None and wrapper2.nodes and wrapper2.nodes[0].id != master.id:
             i3.command(f'[con_id={master.id}] move up')
-        i3.command(f'[con_id={top.id}] unmark {MARK_STACK}')
-        i3.command(f'[con_id={master.id}] mark --add {MARK_STACK}')
+        i3.command(f'[con_id={top.id}] unmark {mark_stack(ws_name)}')
+        i3.command(f'[con_id={master.id}] mark --add {mark_stack(ws_name)}')
 
-    i3.command(f'[con_id={master.id}] unmark {MARK_MASTER}')
-    i3.command(f'[con_id={target_id}] mark --add {MARK_MASTER}')
+    i3.command(f'[con_id={master.id}] unmark {mark_master(ws_name)}')
+    i3.command(f'[con_id={target_id}] mark --add {mark_master(ws_name)}')
 
     # dwm always draws master on the left; make sure the workspace's two
-    # top-level children ended up in that order.
+    # top-level children ended up in that order. `move left` is unsafe here:
+    # when target_id is adjacent to a split container (the stack wrapper),
+    # sway can descend it into that container as a new sibling instead of
+    # reordering it at the workspace level -- confirmed live, it absorbs the
+    # new master into the stack. `swap container` exchanges tree position
+    # without that directional-adjacency fallback.
     ws = i3.get_tree().find_by_id(ws_id)
     if ws.nodes and ws.nodes[0].id != target_id:
-        i3.command(f'[con_id={target_id}] move left')
+        other = ws.nodes[0]
+        i3.command(f'[con_id={target_id}] swap container with con_id {other.id}')
 
     i3.command(f'[con_id={target_id}] resize set width {int(MFACT * 100)} ppt')
     i3.command(f'[con_id={target_id}] focus')
@@ -125,20 +178,49 @@ def fixup_workspace(i3, ws):
     """Re-establish the master/stack invariant after a close or an
     unfloat, without knowing exactly what just changed."""
     ws = i3.get_tree().find_by_id(ws.id)
-    if find_one(ws, MONO_ACTIVE) is not None:
+    ws_name = ws.name
+    if find_one(ws, mark_mono_active(ws_name)) is not None:
         return  # monocle bookkeeping is separate, see fixup during monocle
     tiled = ws.leaves()
     if not tiled:
         return
     master = get_master(ws)
     if master is None:
-        stack_top = find_one(ws, MARK_STACK)
+        stack_top = find_one(ws, mark_stack(ws_name))
         candidate = stack_top if stack_top is not None else tiled[0]
         if stack_top is not None:
-            i3.command(f'[con_id={candidate.id}] unmark {MARK_STACK}')
-            i3.command(f'[con_id={candidate.id}] move to workspace current')
-        i3.command(f'[con_id={candidate.id}] mark --add {MARK_MASTER}')
+            i3.command(f'[con_id={candidate.id}] unmark {mark_stack(ws_name)}')
+            # Pop candidate out of the (always-splitv) stack wrapper to
+            # become its own top-level workspace child. "move to
+            # workspace" is a no-op here -- confirmed live, candidate can
+            # stay nested inside the wrapper even after it "succeeds".
+            # "move left" is safe in this specific direction here because
+            # a splitv wrapper has no horizontal siblings to reorder among,
+            # so sway pops the container out instead -- the opposite risk
+            # from promote_to_master's reordering step, where the target is
+            # already top-level and "move left" can instead descend INTO
+            # an adjacent wrapper (that's why swap container is used
+            # there).
+            i3.command(f'[con_id={candidate.id}] move left')
+        i3.command(f'[con_id={candidate.id}] mark --add {mark_master(ws_name)}')
         master = candidate
+
+    # A close can leave no leaf carrying MARK_STACK -- either the marked
+    # top-of-stack window closed directly, or it just got promoted to
+    # master above -- even though a real stack wrapper with content still
+    # exists. Re-tag its current top so get_stack_wrapper() (and the
+    # resize below, which depends on it) keep working instead of silently
+    # reporting "no stack" until the next new window.
+    ws = i3.get_tree().find_by_id(ws.id)
+    if find_one(ws, mark_stack(ws_name)) is None:
+        wrapper = next(
+            (c for c in ws.nodes if c.id != master.id and c.nodes), None
+        )
+        if wrapper is not None and wrapper.nodes:
+            i3.command(
+                f'[con_id={wrapper.nodes[0].id}] mark --add {mark_stack(ws_name)}'
+            )
+
     if len(tiled) == 1:
         i3.command(f'[con_id={master.id}] resize set width 100 ppt')
     else:
@@ -158,7 +240,7 @@ def tile_cycle(i3):
 
 def enter_monocle(i3):
     ws = ws_by_name_or_focused(i3)
-    if ws is None or find_one(ws, MONO_ACTIVE) is not None:
+    if ws is None or find_one(ws, mark_mono_active(ws.name)) is not None:
         return
     tiled = ws.leaves()
     if len(tiled) < 2:
@@ -166,13 +248,12 @@ def enter_monocle(i3):
     focused = i3.get_tree().find_focused()
     tiled_ids = [c.id for c in tiled]
     active = focused if focused.id in tiled_ids else tiled[0]
-    mark = mono_parked_mark(ws.name)
     for c in tiled:
         if c.id == active.id:
             continue
-        i3.command(f'[con_id={c.id}] mark --add {mark}')
+        i3.command(f'[con_id={c.id}] mark --add {mono_parked_mark(ws.name, c.id)}')
         i3.command(f'[con_id={c.id}] move to scratchpad')
-    i3.command(f'[con_id={active.id}] mark --add {MONO_ACTIVE}')
+    i3.command(f'[con_id={active.id}] mark --add {mark_mono_active(ws.name)}')
     i3.command(f'[con_id={active.id}] resize set width 100 ppt')
     i3.command(f'[con_id={active.id}] resize set height 100 ppt')
     i3.command(f'[con_id={active.id}] focus')
@@ -182,18 +263,23 @@ def exit_monocle(i3):
     ws = ws_by_name_or_focused(i3)
     if ws is None:
         return
-    active = find_one(ws, MONO_ACTIVE)
+    ws_name = ws.name
+    active = find_one(ws, mark_mono_active(ws_name))
     if active is None:
         return  # not in monocle
-    ws_name = ws.name
-    mark = mono_parked_mark(ws_name)
-    i3.command(f'[con_id={active.id}] unmark {MONO_ACTIVE}')
+    i3.command(f'[con_id={active.id}] unmark {mark_mono_active(ws_name)}')
 
-    parked = i3.get_tree().find_marked(mark)
+    parked = i3.get_tree().find_marked(mono_parked_pattern(ws_name))
     for c in parked:
-        i3.command(f'[con_id={c.id}] unmark {mark}')
-        i3.command(f'[con_id={c.id}] floating disable')
+        # Give the container a real tiling context before asking it to
+        # stop floating -- it has none while still hidden in the scratchpad.
         i3.command(f'[con_id={c.id}] move to workspace {ws_name}')
+        i3.command(f'[con_id={c.id}] floating disable')
+        # Unmark AFTER floating disable, not before: on_window_floating
+        # treats a still-present parked mark as "monocle owns this
+        # transition, don't react" -- unmarking first left nothing to
+        # signal that, so the daemon's own handler raced this loop.
+        i3.command(f'[con_id={c.id}] unmark {mono_parked_mark(ws_name, c.id)}')
 
     # Rebuild master/stack from the _ms_master/_ms_stack marks every
     # window already carries (untouched while parked). Best-effort: exact
@@ -204,7 +290,14 @@ def exit_monocle(i3):
     if ws is None:
         return
     master = get_master(ws)
-    others = [c for c in tree.find_marked(MARK_STACK) if c.id != (master.id if master else None)]
+    # Scoped to ws and to leaves only, as defense in depth: marks are now
+    # workspace-namespaced so cross-workspace leakage can't happen, but a
+    # stray non-leaf mark (e.g. from a future bug) would still get treated
+    # as if it were a real window without the leaf filter.
+    others = [
+        c for c in ws.find_marked(mark_stack(ws_name))
+        if not c.nodes and c.id != (master.id if master else None)
+    ]
     others += [c for c in ws.leaves() if master is None or c.id != master.id]
     seen = set()
     ordered = []
@@ -229,22 +322,21 @@ def monocle_cycle(i3):
     ws = ws_by_name_or_focused(i3)
     if ws is None:
         return False
-    active = find_one(ws, MONO_ACTIVE)
+    ws_name = ws.name
+    active = find_one(ws, mark_mono_active(ws_name))
     if active is None:
         return False
-    ws_name = ws.name
-    mark = mono_parked_mark(ws_name)
-    parked = i3.get_tree().find_marked(mark)
+    parked = i3.get_tree().find_marked(mono_parked_pattern(ws_name))
     if not parked:
         return True  # only one window in the monocle set
     nxt = parked[0]
-    i3.command(f'[con_id={active.id}] unmark {MONO_ACTIVE}')
-    i3.command(f'[con_id={active.id}] mark --add {mark}')
+    i3.command(f'[con_id={active.id}] unmark {mark_mono_active(ws_name)}')
+    i3.command(f'[con_id={active.id}] mark --add {mono_parked_mark(ws_name, active.id)}')
     i3.command(f'[con_id={active.id}] move to scratchpad')
-    i3.command(f'[con_id={nxt.id}] unmark {mark}')
-    i3.command(f'[con_id={nxt.id}] mark --add {MONO_ACTIVE}')
-    i3.command(f'[con_id={nxt.id}] floating disable')
+    i3.command(f'[con_id={nxt.id}] unmark {mono_parked_mark(ws_name, nxt.id)}')
+    i3.command(f'[con_id={nxt.id}] mark --add {mark_mono_active(ws_name)}')
     i3.command(f'[con_id={nxt.id}] move to workspace {ws_name}')
+    i3.command(f'[con_id={nxt.id}] floating disable')
     i3.command(f'[con_id={nxt.id}] resize set width 100 ppt')
     i3.command(f'[con_id={nxt.id}] resize set height 100 ppt')
     i3.command(f'[con_id={nxt.id}] focus')
@@ -267,13 +359,15 @@ def on_window_new(i3, event):
     if ws is None or node.id in [f.id for f in ws.floating_nodes]:
         return
 
-    mono_active = find_one(ws, MONO_ACTIVE)
+    mono_active = find_one(ws, mark_mono_active(ws.name))
     if mono_active is not None:
-        mark = mono_parked_mark(ws.name)
-        i3.command(f'[con_id={mono_active.id}] unmark {MONO_ACTIVE}')
-        i3.command(f'[con_id={mono_active.id}] mark --add {mark}')
+        i3.command(f'[con_id={mono_active.id}] unmark {mark_mono_active(ws.name)}')
+        i3.command(
+            f'[con_id={mono_active.id}] mark --add '
+            f'{mono_parked_mark(ws.name, mono_active.id)}'
+        )
         i3.command(f'[con_id={mono_active.id}] move to scratchpad')
-        i3.command(f'[con_id={node.id}] mark --add {MONO_ACTIVE}')
+        i3.command(f'[con_id={node.id}] mark --add {mark_mono_active(ws.name)}')
         i3.command(f'[con_id={node.id}] resize set width 100 ppt')
         i3.command(f'[con_id={node.id}] resize set height 100 ppt')
         # Still needs master/stack bookkeeping so a later Mod+t rebuilds
@@ -305,15 +399,35 @@ def on_window_floating(i3, event):
     node = tree.find_by_id(event.container.id)
     if node is None:
         return
+    if any(
+        m.startswith(MONO_ACTIVE_PREFIX) or m.startswith(MONO_PARKED_PREFIX)
+        for m in node.marks
+    ):
+        # This float transition (either direction) is monocle's own doing:
+        # entering/cycling marks a window then moves it to the scratchpad;
+        # exiting moves it back then disables floating. Checked before the
+        # is_floating branch below so it covers both directions -- confirmed
+        # live, reacting here races monocle's own bookkeeping (marks get
+        # stripped moments after being set, or the window gets re-promoted
+        # concurrently with exit_monocle's own rebuild loop). Leave
+        # monocle's own code fully in charge of these windows.
+        return
     is_floating = any(
         node.id == f.id for w in tree.workspaces() for f in w.floating_nodes
     )
     if not is_floating:
-        return  # became tiled again; window::new covers that reflow
+        # Became tiled again (e.g. a manual floating toggle back to
+        # tiled). NOT covered by window::new -- that only fires for
+        # windows that didn't exist before, not for an existing window
+        # changing float state (confirmed live: nothing else reflows this,
+        # leaving it a flat top-level sibling with no marks and wrong
+        # proportions). Treat it like a newly arrived tiled window.
+        ws = node.workspace()
+        if ws is not None:
+            promote_to_master(i3, ws.id, node.id)
+        return
     for mark in list(node.marks):
-        if mark in (MARK_MASTER, MARK_STACK, MONO_ACTIVE) or mark.startswith(
-            "_ms_mono_parked_"
-        ):
+        if mark.startswith("_ms_"):
             i3.command(f'[con_id={node.id}] unmark {mark}')
     ws = node.workspace()
     if ws is not None:
