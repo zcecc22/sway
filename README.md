@@ -63,11 +63,10 @@ Start Sway from a TTY:
 | `Super+q` | Close window |
 | `Super+1–5` | Switch workspace |
 | `Super+Shift+1–5` | Move window to workspace |
-| `Super+t` | Tile / split layout |
-| `Super+m` | Tabbed layout |
+| `Super+t` | Return to master-stack (tile) mode |
+| `Super+m` | Toggle monocle mode |
 | `Super+f` | Toggle floating |
-| `Super+Left/Right/Up/Down` | Focus left/right/up/down |
-| `Super+Shift+Left/Right/Up/Down` | Move window left/right/up/down |
+| `Super+Tab` | Cycle: promote bottom-of-stack window into master (tile mode) / swap visible window (monocle mode) |
 | `Super+Shift+c` | Reload config |
 | `Super+Shift+q` | Exit Sway |
 
@@ -81,7 +80,8 @@ Brightness and volume keys work out of the box via `brightnessctl` and `wpctl`.
 ~
 ├── .bin/
 │   ├── desktop-setup                # Desktop env installer
-│   └── start-desktop                # Launch Sway
+│   ├── start-desktop                # Launch Sway
+│   └── sway-masterstack             # dwm-style master/stack tiling daemon
 ├── .config/
 │   ├── sway/config                  # Window manager
 │   ├── alacritty/alacritty.toml     # Terminal

@@ -54,21 +54,10 @@ bindsym $mod+Shift+4 move container to workspace number 4
 bindsym $mod+Shift+5 move container to workspace number 5
 
 # Layout
-bindsym $mod+t layout toggle split
+bindsym $mod+t exec $HOME/.bin/sway-masterstack tile
+bindsym $mod+m exec $HOME/.bin/sway-masterstack monocle
 bindsym $mod+f floating toggle
-bindsym $mod+m fullscreen toggle
-
-# Focus movement
-bindsym $mod+Left focus left
-bindsym $mod+Right focus right
-bindsym $mod+Up focus up
-bindsym $mod+Down focus down
-
-# Move windows
-bindsym $mod+Shift+Left move left
-bindsym $mod+Shift+Right move right
-bindsym $mod+Shift+Up move up
-bindsym $mod+Shift+Down move down
+bindsym $mod+Tab exec $HOME/.bin/sway-masterstack cycle
 
 # Laptop keys
 bindsym XF86MonBrightnessUp exec brightnessctl set +5%
@@ -82,7 +71,7 @@ exec mako
 
 # Propagate Wayland/X display vars to DBus activation env and systemd user units
 exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP DISPLAY
-exec autotiling
+exec $HOME/.bin/sway-masterstack
 
 # Idle - blank display after inactivity, matching dwm's `xset dpms 300 600 600`
 exec swayidle -w \
