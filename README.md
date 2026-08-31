@@ -75,6 +75,20 @@ Focus still follows the mouse, and tiled window borders resize by dragging with 
 
 Brightness and volume keys work out of the box via `brightnessctl` and `wpctl`.
 
+## How the master-stack tiling works
+
+Sway has no dwm-style master/stack layout built in, so `sway-masterstack` is a small daemon (~300 lines of Python, using [i3ipc](https://github.com/altdesktop/i3ipc-python)) that layers one on top. It runs continuously, subscribed to Sway's IPC event stream, and re-tiles on every window open, close, and float change — none of the tiling behavior described here is native Sway, it's all enforced by this daemon watching and reacting.
+
+The model it enforces, independently per workspace:
+
+- **`nmaster=1`, one master and one stack** — the most recently created or promoted window is always master; whatever was master gets demoted to the top of the stack.
+- **`mfact=0.5`, an even split** — master and stack columns share the workspace 50/50. (dwm's own default is `0.6`; this repo deliberately diverges.)
+- **`Super+Tab` promotes, rather than just cycling focus** — it pulls the *bottom* of the stack into master, mirroring dwm's `cyclemaster()`, not the more common "step focus to the next window" binding.
+- **Monocle is built on the scratchpad, since Sway has no equivalent** — Sway's tabbed/stacking layouts always draw a tab strip, and dwm's monocle draws none. `Super+m` moves every window but the focused one into the scratchpad; `Super+t` brings them back and rebuilds the master/stack invariant from marks each window kept while hidden.
+- **The current mode is exposed for the status bar** — `sway-masterstack status` prints `[]=` or `[M]` for the focused workspace, feeding waybar's `custom/layout` module, the same feedback dwm's own bar gives for free.
+
+Sway's tree has no first-class notion of "the master" or "the stack," so the daemon tracks both with workspace-namespaced marks (`_ms_master_<workspace>`, `_ms_stack_<workspace>`) and re-derives layout from those marks after every event, rather than keeping a separate in-memory model that could drift from a tree it doesn't fully control. If you're adapting `.bin/sway-masterstack` for your own setup, the source has inline notes on a few of the sharper edges this surfaced along the way — sway marks being unique tree-wide (not per-workspace) by default, and a daemon/CLI race specifically on monocle exit — worth reading before changing the mark-handling code.
+
 ## Structure
 
 ```
@@ -95,4 +109,4 @@ Brightness and volume keys work out of the box via `brightnessctl` and `wpctl`.
 
 ## License
 
-Public domain. Use as you like.
+[Unlicense](LICENSE) — public domain. Use as you like.
