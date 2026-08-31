@@ -25,7 +25,10 @@ client.urgent           #dc322f #dc322f #fdf6e3 #dc322f   #dc322f
 
 # Window borders
 default_border pixel 4
-default_floating_border pixel 4
+default_floating_border normal 4
+
+# Floating window move/resize: mod+left-drag to move, mod+right-drag to resize
+floating_modifier $mod normal
 
 # Touchpad
 input type:touchpad {
@@ -65,9 +68,6 @@ bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
 bindsym XF86AudioRaiseVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
 bindsym XF86AudioLowerVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
 bindsym XF86AudioMute exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
-
-# Notifications
-exec mako
 
 # Propagate Wayland/X display vars to DBus activation env and systemd user units
 exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP DISPLAY

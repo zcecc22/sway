@@ -14,7 +14,6 @@ dbus-x11 \
 alacritty \
 tofi \
 waybar \
-mako-notifier \
 wl-clipboard \
 brightnessctl \
 fonts-inconsolata \

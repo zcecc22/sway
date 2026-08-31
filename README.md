@@ -8,11 +8,10 @@ This repo is desktop-environment config only — it does not manage shell, edito
 
 | Role | Tool |
 |---|---|
-| Window Manager | Sway (Wayland) |
+| Window Manager | Sway (Wayland) + sway-masterstack |
 | Terminal | Alacritty |
 | Status Bar | Waybar |
 | App Launcher | tofi |
-| Notifications | mako |
 | Audio | PipeWire |
 | Fonts | Inconsolata, Font Awesome |
 
@@ -20,8 +19,10 @@ This repo is desktop-environment config only — it does not manage shell, edito
 
 - **No display manager** — Sway starts directly from a TTY via `~/.bin/start-desktop`.
 - **Network and power management are out of scope** — the base system is expected to already have networking (no NetworkManager — `ifupdown2` + `wpa_supplicant`) and TLP/tlp-pd set up; `desktop-setup` only installs Sway and its companion apps.
-- **Solarized Dark everywhere** — consistent palette across Alacritty, Waybar, mako, and tofi.
+- **Solarized Dark everywhere** — consistent palette across Alacritty, Waybar, and tofi.
 - **Screen blanks but never locks** — `swayidle` powers the display off after 5 minutes idle, mirroring dwm's `xset dpms 300 600 600`; there's no lock daemon, matching dwm (which has none either).
+- **No notification daemon** — mako was removed; dwm has none either.
+- **Terminal font is smaller than the rest of the UI** — Alacritty runs at 12pt Inconsolata; Sway's titlebars and Waybar are both 20pt. Intentional, not a mismatch.
 
 ## Prerequisites
 
@@ -70,7 +71,7 @@ Start Sway from a TTY:
 | `Super+Shift+c` | Reload config |
 | `Super+Shift+q` | Exit Sway |
 
-Focus still follows the mouse, and tiled window borders resize by dragging with the mouse — no dedicated keybinding for resizing.
+Focus still follows the mouse, and tiled window borders resize by dragging with the mouse — no dedicated keybinding for resizing. Floating windows have a titlebar to drag, and can also be moved with `Super`+left-drag or resized with `Super`+right-drag from anywhere on the window.
 
 Brightness and volume keys work out of the box via `brightnessctl` and `wpctl`.
 
@@ -87,7 +88,6 @@ Brightness and volume keys work out of the box via `brightnessctl` and `wpctl`.
 │   ├── alacritty/alacritty.toml     # Terminal
 │   ├── waybar/config                # Status bar modules
 │   ├── waybar/style.css             # Status bar styling
-│   ├── mako/config                  # Notification daemon
 │   └── tofi/config                  # App launcher
 └── etc/
     └── udev/rules.d/90-backlight.rules  # Backlight group perms (installed by desktop-setup)
