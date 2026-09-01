@@ -85,7 +85,11 @@ exec $HOME/.bin/sway-masterstack
 # after-resume covers waking from suspend even when the idle timeout never
 # fired (resume alone only pairs with a timeout that actually elapsed, so
 # without this a suspend-before-300s-idle leaves the display off on wake).
-exec swayidle -w \
+# pkill+exec_always (not a bare exec) guarantees exactly one swayidle
+# survives every reload, rather than relying on exec's single-run contract
+# holding in every situation.
+exec_always pkill -x swayidle
+exec_always swayidle -w \
     timeout 300 'swaymsg "output * power off"' \
     resume 'swaymsg "output * power on"' \
     after-resume 'swaymsg "output * power on"' \
