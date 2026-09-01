@@ -1,20 +1,20 @@
 {
     "layer": "top",
     "position": "top",
-    "modules-left": ["custom/layout", "sway/workspaces"],
+    "modules-left": ["sway/workspaces", "custom/layout"],
     "modules-center": ["sway/window"],
     "modules-right": ["battery", "backlight", "pulseaudio", "network", "clock"],
-
-    "custom/layout": {
-        "exec": "$HOME/.bin/sway-masterstack status",
-        "interval": 1
-    },
 
     "sway/workspaces": {
         "disable-scroll": true,
         "persistent-workspaces": {
             "1": [], "2": [], "3": [], "4": [], "5": []
         }
+    },
+
+    "custom/layout": {
+            "exec": "$HOME/.bin/sway-masterstack status",
+            "interval": 1
     },
 
     "sway/window": {
