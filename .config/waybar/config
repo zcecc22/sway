@@ -14,7 +14,8 @@
 
     "custom/layout": {
             "exec": "$HOME/.bin/sway-masterstack status",
-            "interval": 1
+            "interval": "once",
+            "signal": 8
     },
 
     "sway/window": {

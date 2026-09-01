@@ -22,7 +22,8 @@ This repo is desktop-environment config only — it does not manage shell, edito
 - **Solarized Dark everywhere** — consistent palette across Alacritty, Waybar, and tofi.
 - **Screen blanks but never locks** — `swayidle` powers the display off after 5 minutes idle, mirroring dwm's `xset dpms 300 600 600`; there's no lock daemon, matching dwm (which has none either).
 - **No notification daemon** — mako was removed; dwm has none either.
-- **Terminal font is smaller than the rest of the UI** — Alacritty runs at 12pt Inconsolata; Sway's titlebars and Waybar are both 20pt. Intentional, not a mismatch.
+- **Terminal font is smaller than the rest of the UI** — Alacritty runs at 12pt Inconsolata; Sway's titlebars and tofi are 20pt (Pango points). Waybar is sized in CSS pixels instead (`font-size: 20px`, since GTK CSS doesn't share Pango's point-size property) — chosen to land close to the same visual size at this display's scale, not a literal unit match.
+- **Alacritty's bright ANSI colors deliberately diverge from a literal Solarized mapping** — `bright.green/yellow/blue/cyan` repeat their normal-intensity values instead of using base1/base01/base0/base00 (which the canonical mapping would produce, but reads as washed-out grey), and `bright.black` is base01 rather than base03 (so it stays visible instead of blending into the background). `bright.red`/`bright.magenta` do follow the canonical mapping (orange, violet). This is the well-known variant most Solarized terminal themes ship instead of the literal 16-color mapping.
 
 ## Prerequisites
 
@@ -77,15 +78,15 @@ Brightness and volume keys work out of the box via `brightnessctl` and `wpctl`.
 
 ## How the master-stack tiling works
 
-Sway has no dwm-style master/stack layout built in, so `sway-masterstack` is a small daemon (~300 lines of Python, using [i3ipc](https://github.com/altdesktop/i3ipc-python)) that layers one on top. It runs continuously, subscribed to Sway's IPC event stream, and re-tiles on every window open, close, and float change — none of the tiling behavior described here is native Sway, it's all enforced by this daemon watching and reacting.
+Sway has no dwm-style master/stack layout built in, so `sway-masterstack` is a small daemon (~700 lines of Python, using [i3ipc](https://github.com/altdesktop/i3ipc-python)) that layers one on top. It runs continuously, subscribed to Sway's IPC event stream, and re-tiles on every window open, close, float, and move — none of the tiling behavior described here is native Sway, it's all enforced by this daemon watching and reacting.
 
 The model it enforces, independently per workspace:
 
 - **`nmaster=1`, one master and one stack** — the most recently created or promoted window is always master; whatever was master gets demoted to the top of the stack.
 - **`mfact=0.55`** — master gets the wider share, sized so both master and stack columns clear an 80-col terminal at the panel's full width.
 - **`Super+Tab` promotes, rather than just cycling focus** — it pulls the *bottom* of the stack into master, mirroring dwm's `cyclemaster()`, not the more common "step focus to the next window" binding.
-- **Monocle is built on the scratchpad, since Sway has no equivalent** — Sway's tabbed/stacking layouts always draw a tab strip, and dwm's monocle draws none. `Super+m` moves every window but the focused one into the scratchpad; `Super+t` brings them back and rebuilds the master/stack invariant from marks each window kept while hidden.
-- **The current mode is exposed for the status bar** — `sway-masterstack status` prints `[]=` or `[M]` for the focused workspace, feeding waybar's `custom/layout` module, the same feedback dwm's own bar gives for free.
+- **Monocle is built on the scratchpad, since Sway has no equivalent** — Sway's tabbed/stacking layouts always draw a tab strip, and dwm's monocle draws none. `Super+m` toggles monocle on the focused workspace: entering moves every window but the focused one into the scratchpad; exiting (`Super+m` again, or `Super+t`) brings them back and rebuilds the master/stack invariant from marks each window kept while hidden.
+- **The current mode is exposed for the status bar** — `sway-masterstack status` prints `[]=` or `[M]` for the focused workspace, feeding waybar's `custom/layout` module. The daemon signals waybar (`pkill -RTMIN+8 waybar`) on every mode change and workspace switch instead of waybar polling on a timer — the same feedback dwm's own bar gives for free.
 
 Sway's tree has no first-class notion of "the master" or "the stack," so the daemon tracks both with workspace-namespaced marks (`_ms_master_<workspace>`, `_ms_stack_<workspace>`) and re-derives layout from those marks after every event, rather than keeping a separate in-memory model that could drift from a tree it doesn't fully control. If you're adapting `.bin/sway-masterstack` for your own setup, the source has inline notes on a few of the sharper edges this surfaced along the way — sway marks being unique tree-wide (not per-workspace) by default, and a daemon/CLI race specifically on monocle exit — worth reading before changing the mark-handling code.
 

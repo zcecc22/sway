@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """dwm-style master/stack tiling for Sway, via i3ipc.
 
-    sway-masterstack            daemon: auto-arrange on window new/close/float
+    sway-masterstack            daemon: auto-arrange on window new/close/
+                                 float/move, and re-signal waybar on
+                                 workspace focus change
     sway-masterstack cycle      Mod+Tab: promote bottom-of-stack into master
                                  (or swap the visible window, in monocle mode)
-    sway-masterstack monocle    Mod+m: enter monocle on the focused workspace
+    sway-masterstack monocle    Mod+m: toggle monocle on the focused
+                                 workspace
     sway-masterstack tile       Mod+t: return the focused workspace to
                                  master-stack mode
     sway-masterstack status     print "[M]" or "[]=" for the focused
@@ -19,6 +22,7 @@ draw a tab strip; dwm's monocle has none) so it's built on the scratchpad:
 only the active window sits on the workspace, the rest are parked hidden.
 """
 import re
+import subprocess
 import sys
 import time
 
@@ -34,6 +38,19 @@ MARK_MASTER_PREFIX = "_ms_master_"
 MARK_STACK_PREFIX = "_ms_stack_"    # tops the stack, within a workspace
 MONO_ACTIVE_PREFIX = "_ms_mono_active_"
 MONO_PARKED_PREFIX = "_ms_mono_parked_"
+
+WAYBAR_SIGNAL = 8  # matches "signal": 8 on custom/layout in waybar/config
+
+
+def signal_waybar():
+    # Best-effort: waybar may not be running (e.g. this fires during a
+    # `sway-masterstack tile` invocation from a terminal, not the live
+    # session), and pkill's own "no process matched" exit code isn't an
+    # error worth surfacing here.
+    subprocess.run(
+        ["pkill", "-RTMIN+" + str(WAYBAR_SIGNAL), "-x", "waybar"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
 
 
 def mark_master(ws_name):
@@ -330,8 +347,13 @@ def enter_monocle(i3):
     if ws is None or find_one(ws, mark_mono_active(ws.name)) is not None:
         return
     tiled = tiled_leaves(ws)
-    if len(tiled) < 2:
-        return
+    if not tiled:
+        return  # nothing to monoclize
+    # dwm's monocle applies with any window count >= 1 (not just >= 2, the
+    # threshold before this fix) -- a single tiled window is already
+    # full-width/height, so a lone window just gets marked active (for the
+    # bar, and so a later new window parks correctly) without visibly
+    # moving anything.
     focused = i3.get_tree().find_focused()
     tiled_ids = [c.id for c in tiled]
     active = focused if focused.id in tiled_ids else tiled[0]
@@ -344,6 +366,7 @@ def enter_monocle(i3):
     i3.command(f'[con_id={active.id}] resize set width 100 ppt')
     i3.command(f'[con_id={active.id}] resize set height 100 ppt')
     i3.command(f'[con_id={active.id}] focus')
+    signal_waybar()
 
 
 def exit_monocle(i3):
@@ -360,6 +383,12 @@ def exit_monocle(i3):
         # parked window stranded in the scratchpad. Checking parked here
         # too is what lets this restore them instead of silently no-oping.
         return
+    # The rebuild loop below ends by promoting the pre-monocle master, which
+    # focuses it as a side effect -- capture what was actually
+    # visible/focused going in so it can be restored as the final focus
+    # instead of always jumping back to master.
+    pre_focused = i3.get_tree().find_focused()
+    pre_focused_id = pre_focused.id if pre_focused is not None else None
     if active is not None:
         i3.command(f'[con_id={active.id}] unmark {mark_mono_active(ws_name)}')
 
@@ -419,15 +448,17 @@ def exit_monocle(i3):
 
         if master is None:
             fixup_workspace(i3, ws)
-            return
-
-        i3.command(f'[con_id={master.id}] resize set width 100 ppt')
-        for c in ordered:
-            promote_to_master(i3, ws.id, c.id)
-        promote_to_master(i3, ws.id, master.id)
+        else:
+            i3.command(f'[con_id={master.id}] resize set width 100 ppt')
+            for c in ordered:
+                promote_to_master(i3, ws.id, c.id)
+            promote_to_master(i3, ws.id, master.id)
+        if pre_focused_id is not None:
+            i3.command(f'[con_id={pre_focused_id}] focus')
     finally:
         for c in parked:
             i3.command(f'[con_id={c.id}] unmark {mono_parked_mark(ws_name, c.id)}')
+    signal_waybar()
 
 
 def monocle_cycle(i3):
@@ -504,8 +535,26 @@ def on_window_close(i3, event):
     if focused is None:
         return
     ws = focused.workspace()
-    if ws is not None:
-        fixup_workspace(i3, ws)
+    if ws is None:
+        return
+    if (
+        find_one(ws, mark_mono_active(ws.name)) is None
+        and tree.find_marked(mono_parked_pattern(ws.name))
+    ):
+        # The window that just closed was monocle's own active window: its
+        # _ms_mono_active_ mark died with it, so fixup_workspace's monocle
+        # guard (which only checks for that mark) can't see it, and
+        # tiled_leaves(ws) reads empty since every other window is still
+        # hidden in the scratchpad -- fixup_workspace would silently no-op
+        # and leave the workspace blank. exit_monocle already treats
+        # "active gone, parked windows remain" as its restore case, so hand
+        # off to it instead. Note: if a PARKED (non-active) window closed
+        # instead, mark_mono_active is still present here, so this correctly
+        # falls through to fixup_workspace below, whose own monocle guard
+        # already no-ops -- exactly what happened before this check existed.
+        exit_monocle(i3)
+        return
+    fixup_workspace(i3, ws)
 
 
 def on_window_floating(i3, event):
@@ -513,22 +562,42 @@ def on_window_floating(i3, event):
     node = tree.find_by_id(event.container.id)
     if node is None:
         return
-    if any(
-        m.startswith(MONO_ACTIVE_PREFIX) or m.startswith(MONO_PARKED_PREFIX)
-        for m in node.marks
-    ):
-        # This float transition (either direction) is monocle's own doing:
-        # entering/cycling marks a window then moves it to the scratchpad;
-        # exiting moves it back then disables floating. Checked before the
-        # is_floating branch below so it covers both directions -- confirmed
-        # live, reacting here races monocle's own bookkeeping (marks get
-        # stripped moments after being set, or the window gets re-promoted
-        # concurrently with exit_monocle's own rebuild loop). Leave
-        # monocle's own code fully in charge of these windows.
-        return
     is_floating = any(
         node.id == f.id for w in tree.workspaces() for f in w.floating_nodes
     )
+    if any(m.startswith(MONO_PARKED_PREFIX) for m in node.marks):
+        # This float transition (either direction) is monocle's own doing:
+        # entering/cycling marks a window PARKED then moves it to the
+        # scratchpad; exiting moves it back then disables floating -- in
+        # both cases the mark is already in place before the float change,
+        # unlike the ACTIVE case below. Confirmed live, reacting here races
+        # monocle's own bookkeeping (marks get stripped moments after being
+        # set, or the window gets re-promoted concurrently with
+        # exit_monocle's own rebuild loop). Leave monocle's own code fully
+        # in charge of these windows.
+        return
+    active_mark = next(
+        (m for m in node.marks if m.startswith(MONO_ACTIVE_PREFIX)), None
+    )
+    if active_mark is not None:
+        if not is_floating:
+            # Monocle's own transitions never leave the active window
+            # floating (enter/cycle re-mark it PARKED before floating it;
+            # exit never floats it at all) -- this fired for some other
+            # reason but the window is already back to non-floating,
+            # nothing to react to.
+            return
+        # The only way an ACTIVE-marked window ends up floating is a direct
+        # Mod+f on it -- sway's native `floating toggle`, entirely outside
+        # the daemon/CLI's own commands, which never produce this
+        # mark+floating combination. Exit monocle so the rest of the
+        # parked set returns to tiling instead of staying stranded in the
+        # scratchpad under a now-stale invariant; the window that was just
+        # floated is left alone, since floating it is what was just asked
+        # for.
+        i3.command(f'[con_id={node.id}] unmark {active_mark}')
+        exit_monocle(i3)
+        return
     if not is_floating:
         # Became tiled again (e.g. a manual floating toggle back to
         # tiled). NOT covered by window::new -- that only fires for
@@ -546,6 +615,69 @@ def on_window_floating(i3, event):
     ws = node.workspace()
     if ws is not None:
         fixup_workspace(i3, ws)
+
+
+def on_window_move(i3, event):
+    # Fires for Mod+Shift+<N> (move to workspace), but ALSO for every
+    # daemon- or CLI-issued "move to workspace"/"move to mark"/"move left"
+    # inside promote_to_master and fixup_workspace, since those are
+    # genuinely the same sway command -- the two cases can't be told apart
+    # by which command ran, only by the container's state.
+    #
+    # Events on THIS daemon's own connection queue and dispatch only after
+    # whichever handler triggered them has already returned, so a move
+    # self-triggered by on_window_new/on_window_floating is safe to reason
+    # about as "already fully settled." But `cycle`/`monocle`/`tile` run as
+    # SEPARATE short-lived processes (see the on_window_floating comment on
+    # exit_monocle for the same cross-process race), so a move they issue
+    # can be observed by this daemon mid-flight, e.g. `cycle`'s
+    # promote_to_master between its "move to workspace" (line ~185, no
+    # marks yet) and the mark --add many commands later. A intra-workspace
+    # daemon/CLI move is therefore NOT reliably distinguishable by "does it
+    # already carry dest's fresh mark" alone -- it may carry no _ms_ mark
+    # at all when this fires.
+    #
+    # What's actually true for every intra-workspace daemon/CLI move,
+    # regardless of race timing, is that the container never leaves its
+    # workspace: dest == src, and any _ms_ mark it carries (if any) already
+    # names THIS workspace, never a different one. A genuine cross-
+    # workspace user move breaks exactly one of those: either focus is
+    # still on a different (source) workspace, or the container carries a
+    # stale mark naming the workspace it used to be master/stack-top on
+    # (the "focus already followed the move" edge case -- e.g. moving the
+    # LAST window off a workspace, which is always that workspace's
+    # master).
+    tree = i3.get_tree()
+    node = tree.find_by_id(event.container.id)
+    if node is None:
+        return
+    if any(
+        m.startswith(MONO_ACTIVE_PREFIX) or m.startswith(MONO_PARKED_PREFIX)
+        for m in node.marks
+    ):
+        return  # monocle's own scratchpad shuffling also fires window::move
+    dest = node.workspace()
+    if dest is None:
+        return
+    if node.id in [f.id for f in dest.floating_nodes]:
+        return
+    dest_name = dest.name
+    focused = tree.find_focused()
+    src = focused.workspace() if focused is not None else None
+    cross_workspace = src is not None and src.id != dest.id
+    stale_mark = any(
+        (m.startswith(MARK_MASTER_PREFIX) or m.startswith(MARK_STACK_PREFIX))
+        and m not in (mark_master(dest_name), mark_stack(dest_name))
+        for m in node.marks
+    )
+    if not cross_workspace and not stale_mark:
+        return  # intra-workspace daemon/CLI move -- not a genuine user move
+    if cross_workspace:
+        fixup_workspace(i3, src)
+    for mark in list(node.marks):
+        if mark.startswith("_ms_"):
+            i3.command(f'[con_id={node.id}] unmark {mark}')
+    promote_to_master(i3, dest.id, node.id)
 
 
 def print_status(i3):
@@ -573,7 +705,21 @@ def run_daemon():
     i3.on(Event.WINDOW_NEW, guarded(on_window_new))
     i3.on(Event.WINDOW_CLOSE, guarded(on_window_close))
     i3.on(Event.WINDOW_FLOATING, guarded(on_window_floating))
+    i3.on(Event.WINDOW_MOVE, guarded(on_window_move))
+    # Not a tiling-invariant concern -- print_status reports the FOCUSED
+    # workspace's mode, so switching workspaces (Mod+1-5, native sway
+    # command, no daemon involvement otherwise) can change what the bar
+    # should show even though no mark anywhere changed.
+    i3.on(Event.WORKSPACE_FOCUS, guarded(lambda i3conn, event: signal_waybar()))
     i3.main()
+
+
+def toggle_monocle(i3):
+    ws = ws_by_name_or_focused(i3)
+    if ws is not None and find_one(ws, mark_mono_active(ws.name)) is not None:
+        exit_monocle(i3)
+    else:
+        enter_monocle(i3)
 
 
 def main():
@@ -583,7 +729,7 @@ def main():
     elif args[0] == "cycle":
         run_cycle()
     elif args[0] == "monocle":
-        enter_monocle(Connection())
+        toggle_monocle(Connection())
     elif args[0] == "tile":
         exit_monocle(Connection())
     elif args[0] == "status":

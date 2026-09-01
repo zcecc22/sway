@@ -30,15 +30,15 @@ Laptop - includes brightness control (brightnessctl), battery status, lid handli
 - Display scaling: `output <name> scale 1.25` (HiDPI panel)
 - Borders: 4px pixel border on tiled windows (no gaps); floating windows use a `normal` border instead, restoring the titlebar as a drag handle
 - Workspaces: 5 (matches dwm's 5 tags)
-- Tiling: `sway-masterstack` daemon (i3ipc-based) — dwm-style master/stack layout, `nmaster=1`, `mfact=0.55` (master gets the wider share, sized so both master and stack columns clear an 80-col terminal at the panel's full width); Mod+Tab cycles the bottom-of-stack window into master (dwm `cyclemaster` parity), Mod+m toggles monocle mode (scratchpad-based, since Sway has no native equivalent — sway's native fullscreen toggle is no longer bound to anything), Mod+t returns to master-stack mode, Mod+f = floating toggle. A `sway-masterstack status` subcommand prints `[M]`/`[]=` for the focused workspace, driving a `custom/layout` waybar module, placed after `sway/workspaces` in `modules-left` — dwm-bar parity for the current mode.
+- Tiling: `sway-masterstack` daemon (i3ipc-based) — dwm-style master/stack layout, `nmaster=1`, `mfact=0.55` (master gets the wider share, sized so both master and stack columns clear an 80-col terminal at the panel's full width); Mod+Tab cycles the bottom-of-stack window into master (dwm `cyclemaster` parity), Mod+m toggles monocle mode (scratchpad-based, since Sway has no native equivalent — sway's native fullscreen toggle is no longer bound to anything), Mod+t also returns to master-stack mode (an explicit exit, alongside Mod+m's toggle), Mod+f = floating toggle. A `sway-masterstack status` subcommand prints `[M]`/`[]=` for the focused workspace, driving a `custom/layout` waybar module, placed after `sway/workspaces` in `modules-left` — dwm-bar parity for the current mode. The daemon signals waybar directly (`pkill -RTMIN+8 waybar`) on every mode change and workspace switch, rather than waybar polling `sway-masterstack status` on a timer.
 - Floating windows: `floating_modifier $mod normal` — Mod+left-drag moves, Mod+right-drag resizes, in addition to the titlebar
 - Keybindings: letters remapped to match this repo's companion dwm config — Mod+p launcher, Mod+q kill, Mod+Shift+q exit session; Mod+Shift+c reload is a sway-only addition with no dwm analog
 - Focus: `Mod+Tab` is the only keyboard focus-cycling binding (no directional arrow-key focus/move, matching dwm which has none either); focus still follows mouse hover (sway default), tiled window borders resize by mouse drag
-- Touchpad: tap-to-click via `input type:touchpad { tap enabled }`
+- Touchpad: tap-to-click and middle-click emulation via `input type:touchpad { tap enabled; middle_emulation enabled }`
 - Idle: `swayidle` powers the display off after 300s (5 min) inactivity, matching dwm's `xset dpms 300 600 600` standby timeout, and powers it back on on resume or before-sleep; no lock daemon, matching dwm (which has none either)
 - Notifications: no notification daemon — mako was removed; dwm has none either
 - DBus/systemd env: `dbus-update-activation-environment` propagates `WAYLAND_DISPLAY`, `DISPLAY`, `XDG_CURRENT_DESKTOP` on startup, required by dbus-activated systemd user units (PipeWire, WirePlumber) — no portal package (`xdg-desktop-portal-wlr`) is installed, so this is not currently doing anything for screen sharing/file pickers
-- Fonts: Alacritty (terminal) is 12pt Inconsolata; Sway's own UI font (titlebars) and Waybar are both 20pt — an intentional split, not an inconsistency
+- Fonts: Alacritty (terminal) is 12pt Inconsolata — an intentional split from the rest of the UI, not an inconsistency. Sway's own UI font (titlebars) and tofi are both point-sized at 20 (Pango points); Waybar is pixel-sized at 20 (`font-size: 20px` in its CSS, since GTK CSS has no Pango-style point unit) — chosen to land close to the same visual size at this display's scale, not a literal unit match
 
 ## Theme: Solarized Dark Palette
 ```
@@ -60,6 +60,8 @@ cyan:    #2aa198
 green:   #859900
 ```
 `client.focused` / focused-workspace color `#174956` is a custom dark cyan (not a standard Solarized value), carried over from the companion dwm config's selected-window scheme.
+
+Alacritty's bright ANSI colors deliberately diverge from a literal Solarized mapping: `bright.green/yellow/blue/cyan` repeat their normal-intensity values (the canonical mapping would use base1/base01/base0/base00, which reads as washed-out grey in a terminal), and `bright.black` is base01 rather than base03 (so it stays visible). `bright.red`/`bright.magenta` do follow the canonical mapping (orange, violet). This is the well-known variant most Solarized terminal themes ship instead of the literal 16-color mapping.
 
 ## Repository Structure
 
