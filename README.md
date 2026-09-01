@@ -82,7 +82,7 @@ Sway has no dwm-style master/stack layout built in, so `sway-masterstack` is a s
 The model it enforces, independently per workspace:
 
 - **`nmaster=1`, one master and one stack** — the most recently created or promoted window is always master; whatever was master gets demoted to the top of the stack.
-- **`mfact=0.5`, an even split** — master and stack columns share the workspace 50/50. (dwm's own default is `0.6`; this repo deliberately diverges.)
+- **`mfact=0.55`** — master gets the wider share, sized so both master and stack columns clear an 80-col terminal at the panel's full width.
 - **`Super+Tab` promotes, rather than just cycling focus** — it pulls the *bottom* of the stack into master, mirroring dwm's `cyclemaster()`, not the more common "step focus to the next window" binding.
 - **Monocle is built on the scratchpad, since Sway has no equivalent** — Sway's tabbed/stacking layouts always draw a tab strip, and dwm's monocle draws none. `Super+m` moves every window but the focused one into the scratchpad; `Super+t` brings them back and rebuilds the master/stack invariant from marks each window kept while hidden.
 - **The current mode is exposed for the status bar** — `sway-masterstack status` prints `[]=` or `[M]` for the focused workspace, feeding waybar's `custom/layout` module, the same feedback dwm's own bar gives for free.

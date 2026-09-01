@@ -11,9 +11,9 @@
                                  workspace, for a waybar custom module
 
 Mirrors the companion dwm config's nmaster=1 and dwm's custom
-cyclemaster()/pop() (Mod+Tab promotes the bottom of the stack into master),
-but deliberately diverges on the split: mfact=0.5 (even split) instead of
-dwm's 0.6.
+cyclemaster()/pop() (Mod+Tab promotes the bottom of the stack into master).
+mfact=0.55 is sized so both master and stack columns clear an 80-col
+terminal, while still giving master the wider half.
 Monocle has no native Sway equivalent (Sway's tabbed/stacking layouts always
 draw a tab strip; dwm's monocle has none) so it's built on the scratchpad:
 only the active window sits on the workspace, the rest are parked hidden.
@@ -24,10 +24,11 @@ import time
 
 from i3ipc import Connection, Event
 
-MFACT = 0.5  # even master/stack split, deliberately diverging from dwm
-             # config.h's mfact=0.6. nmaster is fixed at 1 -- the dwm build
-             # this mirrors has no incnmaster binding, so master is always
-             # a single leaf, never a wrapper of several.
+MFACT = 0.55  # gives master the wider share while keeping both master and
+              # stack columns above 80 cols on the panel's full width.
+              # nmaster is fixed at 1 -- the dwm build this mirrors has no
+              # incnmaster binding, so master is always a single leaf, never
+              # a wrapper of several.
 
 MARK_MASTER_PREFIX = "_ms_master_"
 MARK_STACK_PREFIX = "_ms_stack_"    # tops the stack, within a workspace
