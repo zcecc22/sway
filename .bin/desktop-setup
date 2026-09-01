@@ -14,8 +14,13 @@ sway \
 swaybg \
 swayidle \
 xwayland \
-dbus-bin \
 dbus-x11 \
+dbus-user-session \
+dbus \
+xdg-desktop-portal \
+xdg-desktop-portal-wlr \
+xdg-desktop-portal-gtk \
+at-spi2-core \
 alacritty \
 tofi \
 waybar \
