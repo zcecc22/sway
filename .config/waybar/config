@@ -3,7 +3,7 @@
     "position": "top",
     "modules-left": ["sway/workspaces", "custom/layout"],
     "modules-center": ["sway/window"],
-    "modules-right": ["battery", "backlight", "pulseaudio", "network", "clock"],
+    "modules-right": ["battery", "backlight", "wireplumber", "network", "clock"],
 
     "sway/workspaces": {
         "disable-scroll": true,
@@ -44,7 +44,7 @@
         "tooltip-format": "{ipaddr}"
     },
 
-    "pulseaudio": {
+    "wireplumber": {
         "format": "{icon} {volume}%",
         "format-muted": " muted",
         "format-icons": {

@@ -21,7 +21,7 @@
 | Fonts | Inconsolata (text), Font Awesome (waybar icons) |
 
 ## Hardware Target
-Laptop - includes brightness control (brightnessctl), battery status, lid handling. Debian's `brightnessctl` package ships no udev rule (unlike Arch's), so `desktop-setup` installs `etc/udev/rules.d/90-backlight.rules` and adds the user to the `video` group to allow brightness control without root; requires re-login to take effect.
+Laptop - includes brightness control (brightnessctl) and battery status. Debian's `brightnessctl` package ships no udev rule (unlike Arch's), so `desktop-setup` installs `etc/udev/rules.d/90-backlight.rules` and adds the user to the `video` group to allow brightness control without root; requires re-login to take effect. Lid-switch behavior is left to systemd-logind's own default policy (`HandleLidSwitch=suspend`) rather than configured here — out of scope for this repo the same way network and power management are.
 
 ## Sway Defaults
 - Mod key: Super/Logo
@@ -37,7 +37,7 @@ Laptop - includes brightness control (brightnessctl), battery status, lid handli
 - Touchpad: tap-to-click and middle-click emulation via `input type:touchpad { tap enabled; middle_emulation enabled }`
 - Idle: `swayidle` powers the display off after 300s (5 min) inactivity, matching dwm's `xset dpms 300 600 600` standby timeout, and powers it back on on resume or before-sleep; no lock daemon, matching dwm (which has none either)
 - Notifications: no notification daemon — mako was removed; dwm has none either
-- DBus/systemd env: `dbus-update-activation-environment` propagates `WAYLAND_DISPLAY`, `DISPLAY`, `XDG_CURRENT_DESKTOP` on startup, required by dbus-activated systemd user units (PipeWire, WirePlumber) — no portal package (`xdg-desktop-portal-wlr`) is installed, so this is not currently doing anything for screen sharing/file pickers
+- DBus/systemd env: `dbus-update-activation-environment` propagates `WAYLAND_DISPLAY`, `DISPLAY`, `XDG_CURRENT_DESKTOP` on startup, required by dbus-activated systemd user units (PipeWire, WirePlumber) and by the `xdg-desktop-portal`/`xdg-desktop-portal-wlr`/`xdg-desktop-portal-gtk` packages `desktop-setup` installs, which use it to pick up the Wayland session for screen sharing/file pickers
 - Fonts: Alacritty (terminal) is 12pt Inconsolata — an intentional split from the rest of the UI, not an inconsistency. Sway's own UI font (titlebars) and tofi are both point-sized at 20 (Pango points); Waybar is pixel-sized at 20 (`font-size: 20px` in its CSS, since GTK CSS has no Pango-style point unit) — chosen to land close to the same visual size at this display's scale, not a literal unit match
 
 ## Theme: Solarized Dark Palette

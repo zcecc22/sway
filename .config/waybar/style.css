@@ -46,7 +46,7 @@ tooltip label {
 #clock,
 #battery,
 #network,
-#pulseaudio,
+#wireplumber,
 #backlight {
     padding: 0 10px;
     color: #93a1a1;
@@ -72,6 +72,6 @@ tooltip label {
     color: #586e75;
 }
 
-#pulseaudio.muted {
+#wireplumber.muted {
     color: #586e75;
 }
