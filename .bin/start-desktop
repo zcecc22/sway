@@ -10,6 +10,11 @@ brightnessctl set 50%
 # sway's own log and sway-masterstack's swallowed per-event error prints
 # (it stays alive across bad events, so these are its only failure signal)
 # both go to stderr; without this they'd land on a TTY nothing is watching
-# and vanish when the session ends.
+# and vanish when the session ends. Appended (not truncated) across restarts
+# so a crash's final output survives long enough to read after you restart
+# the session to recover -- the log has no rotation, so clear it yourself
+# occasionally.
 mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}"
-exec sway "$@" >"${XDG_CACHE_HOME:-$HOME/.cache}/sway.log" 2>&1
+log="${XDG_CACHE_HOME:-$HOME/.cache}/sway.log"
+printf '\n==== sway session start: %s ====\n' "$(date -Is)" >>"$log"
+exec sway "$@" >>"$log" 2>&1
