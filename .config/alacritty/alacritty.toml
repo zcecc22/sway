@@ -20,6 +20,12 @@ padding = { x = 4, y = 2 }
 [cursor]
 style = { shape = "Block", blinking = "Off" }
 
+[colors]
+# fonts-inconsolata ships a single Medium-weight face, so [font.bold]'s
+# "Bold" style request just fontconfig-matches back to the same file --
+# there is no bold weight to render. Distinguish bold via color instead.
+draw_bold_text_with_bright_colors = true
+
 # Solarized Dark
 [colors.primary]
 background = "#002b36"

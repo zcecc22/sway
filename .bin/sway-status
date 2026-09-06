@@ -51,36 +51,39 @@ battery() {
 }
 
 brightness() {
-    printf 'BRI %s' "$(brightnessctl -m | cut -d, -f4)"
+    local b
+    b=$(brightnessctl -m 2>/dev/null | cut -d, -f4)
+    [ -n "$b" ] && printf 'BRI %s' "$b"
 }
 
 volume() {
     local out
     out=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null)
+    [ -z "$out" ] && return
     if printf '%s' "$out" | grep -q MUTED; then
         printf 'VOL muted'
     else
-        printf 'VOL %s%%' "$(printf '%s' "$out" | awk '{printf "%d", $2 * 100}')"
+        printf 'VOL %s%%' "$(printf '%s' "$out" | LC_ALL=C awk '{printf "%d", $2 * 100}')"
     fi
 }
 
 net() {
-    local iface ssid
-    iface=$(ls /sys/class/net/ 2>/dev/null | grep -E '^wl' | head -1)
-    if [ -n "$iface" ]; then
-        ssid=$(iw dev "$iface" link 2>/dev/null | awk '/SSID:/{sub(/.*SSID: /, ""); print}')
+    local wl ssid eth
+    wl=$(ls /sys/class/net/ 2>/dev/null | grep -E '^wl' | head -1)
+    if [ -n "$wl" ]; then
+        ssid=$(iw dev "$wl" link 2>/dev/null | awk '/SSID:/{sub(/.*SSID: /, ""); print}')
         if [ -n "$ssid" ]; then
             printf 'NET %s' "$ssid"
-        else
-            printf 'NET down'
+            return
         fi
+    fi
+    # No associated wifi (or no wifi adapter) -- fall back to a wired route
+    # before giving up, instead of reporting down while ethernet is up.
+    eth=$(ip route show default 2>/dev/null | awk 'NR==1{print $5}')
+    if [ -n "$eth" ]; then
+        printf 'NET eth'
     else
-        iface=$(ip route show default 2>/dev/null | awk 'NR==1{print $5}')
-        if [ -n "$iface" ]; then
-            printf 'NET eth'
-        else
-            printf 'NET down'
-        fi
+        printf 'NET down'
     fi
 }
 

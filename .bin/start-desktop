@@ -5,6 +5,11 @@ export XDG_SESSION_TYPE=wayland
 export XDG_CURRENT_DESKTOP=sway
 export MOZ_ENABLE_WAYLAND=1
 
+# iw (used by sway-status's net() to read the wifi SSID) lives in /usr/sbin
+# on Debian; a login shell's inherited PATH doesn't include it by default,
+# which silently breaks the network status segment.
+export PATH="$PATH:/usr/sbin"
+
 brightnessctl set 50%
 
 # sway's own log and sway-masterstack's swallowed per-event error prints
