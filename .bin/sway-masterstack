@@ -23,12 +23,16 @@ Monocle has no native Sway equivalent (Sway's tabbed/stacking layouts always
 draw a tab strip; dwm's monocle has none) so it's built on the scratchpad:
 only the active window sits on the workspace, the rest are parked hidden.
 """
+import os
 import re
-import subprocess
 import sys
 import time
 
 from i3ipc import Connection, Event
+
+STATUS_FIFO = os.path.join(
+    os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "sway-status.fifo"
+)
 
 MFACT = 0.55  # gives master the wider share while keeping both master and
               # stack columns above 80 cols on the panel's full width.
@@ -42,14 +46,27 @@ MONO_ACTIVE_PREFIX = "_ms_mono_active_"
 MONO_PARKED_PREFIX = "_ms_mono_parked_"
 
 def signal_status():
-    # Best-effort: sway-status may not be running (e.g. this fires during a
+    # Wakes sway-status's main loop early via a FIFO write rather than a
+    # signal: delivering a signal (e.g. SIGUSR1) into a running bash script
+    # can interrupt bash's own read() of its script source mid-reparse of a
+    # compound command (sway-status's own `while` loop), corrupting the
+    # parse and killing the whole process -- confirmed live, reliably
+    # reproducible from a quick burst of signals (e.g. rapidly switching
+    # workspaces a few times in a row). A FIFO write carries no such risk.
+    #
+    # Non-blocking open: best-effort, matching the old pkill's silent
+    # no-op when sway-status isn't running (e.g. this fires during a
     # `sway-masterstack tile` invocation from a terminal, not the live
-    # session), and pkill's own "no process matched" exit code isn't an
-    # error worth surfacing here.
-    subprocess.run(
-        ["pkill", "-SIGUSR1", "-x", "sway-status"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
+    # session). With no reader present, O_NONBLOCK makes the open fail
+    # immediately (ENXIO) instead of hanging the daemon's event loop.
+    try:
+        fd = os.open(STATUS_FIFO, os.O_WRONLY | os.O_NONBLOCK)
+        try:
+            os.write(fd, b"\n")
+        finally:
+            os.close(fd)
+    except OSError:
+        pass
 
 
 def mark_master(ws_name):

@@ -14,16 +14,26 @@
 # clock. The first two stand in for waybar's old sway/window module and
 # custom/layout module -- native swaybar has no equivalent slots, so both move
 # into the status line itself.
+#
+# Immediate refresh on layout-mode change / workspace focus change is driven
+# by sway-masterstack's signal_status() writing a line to a FIFO, which the
+# main loop below blocks on (with a 1s timeout) instead of a plain `sleep`.
+# This intentionally avoids OS signals: delivering a signal (e.g. SIGUSR1)
+# into a running bash script can interrupt bash's own read() of its script
+# source mid-reparse of a compound command (this script's own `while` loop),
+# corrupting the parse and killing the whole process -- confirmed live,
+# reproducible on demand by sending a quick burst of signals (e.g. from
+# rapidly switching workspaces a few times in a row).
 
 set -u
 
 MASTERSTACK="$HOME/.bin/sway-masterstack"
-
-# No-op handler: exists only so the `wait $!` below is interrupted
-# immediately on SIGUSR1 (sway-masterstack's signal_status() sends this on
-# every layout-mode change and workspace focus change), forcing an
-# immediate reprint instead of waiting out the rest of the current 1s poll.
-trap 'true' SIGUSR1
+FIFO="${XDG_RUNTIME_DIR:-/tmp}/sway-status.fifo"
+[ -p "$FIFO" ] || mkfifo "$FIFO"
+# Read-write open: never blocks (unlike a write-only open of a FIFO with no
+# reader yet), and keeps a permanent reader end alive so signal_status()'s
+# writes never block either.
+exec 3<>"$FIFO"
 
 battery() {
     local bat p s
@@ -93,6 +103,5 @@ print_status() {
 
 while true; do
     print_status
-    sleep 1 &
-    wait $!
+    read -t 1 -r _ <&3
 done
