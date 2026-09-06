@@ -10,9 +10,9 @@
 # vol-status files, and with plain text labels (BAT/BRI/VOL/NET) instead of
 # slstatus's Font Awesome glyphs -- no nerdfonts anywhere in this repo.
 #
-# Segment order: layout indicator, focused window title, BAT, BRI, VOL, NET,
-# clock. The first two stand in for waybar's old custom/layout module and
-# sway/window module -- native swaybar has no equivalent slots, so both move
+# Segment order: focused window title, layout indicator, BAT, BRI, VOL, NET,
+# clock. The first two stand in for waybar's old sway/window module and
+# custom/layout module -- native swaybar has no equivalent slots, so both move
 # into the status line itself.
 
 set -u
@@ -77,13 +77,13 @@ net() {
 print_status() {
     local seg out=""
     for seg in \
-        "$("$MASTERSTACK" status 2>/dev/null)" \
         "$("$MASTERSTACK" title 2>/dev/null)" \
+        "$("$MASTERSTACK" status 2>/dev/null)" \
         "$(battery)" \
         "$(brightness)" \
         "$(volume)" \
         "$(net)" \
-        "$(date '+%a %d %b  %H:%M')"
+        "$(date '+%Y-%m-%d %H:%M')"
     do
         [ -z "$seg" ] && continue
         out="${out:+$out  }$seg"

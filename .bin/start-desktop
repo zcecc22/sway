@@ -5,7 +5,7 @@ export XDG_SESSION_TYPE=wayland
 export XDG_CURRENT_DESKTOP=sway
 export MOZ_ENABLE_WAYLAND=1
 
-brightnessctl set 15%
+brightnessctl set 50%
 
 # sway's own log and sway-masterstack's swallowed per-event error prints
 # (it stays alive across bad events, so these are its only failure signal)

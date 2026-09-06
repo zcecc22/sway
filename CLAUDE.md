@@ -26,7 +26,7 @@ Laptop - includes brightness control (brightnessctl) and battery status. Debian'
 ## Sway Defaults
 - Mod key: Super/Logo
 - Wallpaper: solid solarized base03 (#002b36)
-- Startup brightness: 15% via brightnessctl
+- Startup brightness: 50% via brightnessctl
 - Display scaling: `output <name> scale 1.25` (HiDPI panel)
 - Borders: 4px pixel border on tiled windows (no gaps); floating windows use a `normal` border instead, restoring the titlebar as a drag handle
 - Workspaces: 9
