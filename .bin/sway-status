@@ -1,0 +1,98 @@
+#!/bin/bash
+# ~/.bin/sway-status
+#
+# Plain i3bar text-protocol status line for swaybar's `status_command` (see
+# `bar {}` in ~/.config/sway/config). Mirrors the companion dwm config's
+# slstatus setup (../dwm/.slstatus/config.h) -- same segments in the same
+# order, same 1s poll interval, same two-space inter-segment separator --
+# but as one combined script (this repo's one-script-per-tool convention,
+# e.g. sway-masterstack) instead of dwm's split bat-status/net-status/
+# vol-status files, and with plain text labels (BAT/BRI/VOL/NET) instead of
+# slstatus's Font Awesome glyphs -- no nerdfonts anywhere in this repo.
+#
+# Segment order: layout indicator, focused window title, BAT, BRI, VOL, NET,
+# clock. The first two stand in for waybar's old custom/layout module and
+# sway/window module -- native swaybar has no equivalent slots, so both move
+# into the status line itself.
+
+set -u
+
+MASTERSTACK="$HOME/.bin/sway-masterstack"
+
+# No-op handler: exists only so the `wait $!` below is interrupted
+# immediately on SIGUSR1 (sway-masterstack's signal_status() sends this on
+# every layout-mode change and workspace focus change), forcing an
+# immediate reprint instead of waiting out the rest of the current 1s poll.
+trap 'true' SIGUSR1
+
+battery() {
+    local bat p s
+    for bat in /sys/class/power_supply/BAT*; do
+        [ -d "$bat" ] || continue
+        p=$(cat "$bat/capacity" 2>/dev/null) || continue
+        s=$(cat "$bat/status" 2>/dev/null)
+        if [ "$s" = "Charging" ]; then
+            printf 'BAT %s%%+' "$p"
+        else
+            printf 'BAT %s%%' "$p"
+        fi
+        return
+    done
+}
+
+brightness() {
+    printf 'BRI %s' "$(brightnessctl -m | cut -d, -f4)"
+}
+
+volume() {
+    local out
+    out=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null)
+    if printf '%s' "$out" | grep -q MUTED; then
+        printf 'VOL muted'
+    else
+        printf 'VOL %s%%' "$(printf '%s' "$out" | awk '{printf "%d", $2 * 100}')"
+    fi
+}
+
+net() {
+    local iface ssid
+    iface=$(ls /sys/class/net/ 2>/dev/null | grep -E '^wl' | head -1)
+    if [ -n "$iface" ]; then
+        ssid=$(iw dev "$iface" link 2>/dev/null | awk '/SSID:/{sub(/.*SSID: /, ""); print}')
+        if [ -n "$ssid" ]; then
+            printf 'NET %s' "$ssid"
+        else
+            printf 'NET down'
+        fi
+    else
+        iface=$(ip route show default 2>/dev/null | awk 'NR==1{print $5}')
+        if [ -n "$iface" ]; then
+            printf 'NET eth'
+        else
+            printf 'NET down'
+        fi
+    fi
+}
+
+print_status() {
+    local seg out=""
+    for seg in \
+        "$("$MASTERSTACK" status 2>/dev/null)" \
+        "$("$MASTERSTACK" title 2>/dev/null)" \
+        "$(battery)" \
+        "$(brightness)" \
+        "$(volume)" \
+        "$(net)" \
+        "$(date '+%a %d %b  %H:%M')"
+    do
+        [ -z "$seg" ] && continue
+        out="${out:+$out  }$seg"
+    done
+    printf '%s\n' "$out"
+}
+
+while true; do
+    print_status
+    sleep 1 &
+    wait $!
+done

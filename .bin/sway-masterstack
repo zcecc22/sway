@@ -2,7 +2,7 @@
 """dwm-style master/stack tiling for Sway, via i3ipc.
 
     sway-masterstack            daemon: auto-arrange on window new/close/
-                                 float/move, and re-signal waybar on
+                                 float/move, and re-signal sway-status on
                                  workspace focus change
     sway-masterstack cycle      Mod+Tab: promote bottom-of-stack into master
                                  (or swap the visible window, in monocle mode)
@@ -11,7 +11,9 @@
     sway-masterstack tile       Mod+t: return the focused workspace to
                                  master-stack mode
     sway-masterstack status     print "[M]" or "[]=" for the focused
-                                 workspace, for a waybar custom module
+                                 workspace, for sway-status's layout segment
+    sway-masterstack title      print the focused window's title, or "" if
+                                 none, for sway-status's title segment
 
 Mirrors the companion dwm config's nmaster=1 and dwm's custom
 cyclemaster()/pop() (Mod+Tab promotes the bottom of the stack into master).
@@ -39,16 +41,13 @@ MARK_STACK_PREFIX = "_ms_stack_"    # tops the stack, within a workspace
 MONO_ACTIVE_PREFIX = "_ms_mono_active_"
 MONO_PARKED_PREFIX = "_ms_mono_parked_"
 
-WAYBAR_SIGNAL = 8  # matches "signal": 8 on custom/layout in waybar/config
-
-
-def signal_waybar():
-    # Best-effort: waybar may not be running (e.g. this fires during a
+def signal_status():
+    # Best-effort: sway-status may not be running (e.g. this fires during a
     # `sway-masterstack tile` invocation from a terminal, not the live
     # session), and pkill's own "no process matched" exit code isn't an
     # error worth surfacing here.
     subprocess.run(
-        ["pkill", "-RTMIN+" + str(WAYBAR_SIGNAL), "-x", "waybar"],
+        ["pkill", "-SIGUSR1", "-x", "sway-status"],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
 
@@ -366,7 +365,7 @@ def enter_monocle(i3):
     i3.command(f'[con_id={active.id}] resize set width 100 ppt')
     i3.command(f'[con_id={active.id}] resize set height 100 ppt')
     i3.command(f'[con_id={active.id}] focus')
-    signal_waybar()
+    signal_status()
 
 
 def exit_monocle(i3):
@@ -458,7 +457,7 @@ def exit_monocle(i3):
     finally:
         for c in parked:
             i3.command(f'[con_id={c.id}] unmark {mono_parked_mark(ws_name, c.id)}')
-    signal_waybar()
+    signal_status()
 
 
 def monocle_cycle(i3):
@@ -681,13 +680,28 @@ def on_window_move(i3, event):
 
 
 def print_status(i3):
-    """Print the focused workspace's current mode, for a waybar custom
-    module: `[M]` in monocle (dwm parity), `[]=` in master-stack."""
+    """Print the focused workspace's current mode, for sway-status's layout
+    segment: `[M]` in monocle (dwm parity), `[]=` in master-stack."""
     ws = ws_by_name_or_focused(i3)
     if ws is not None and find_one(ws, mark_mono_active(ws.name)) is not None:
         print("[M]")
     else:
         print("[]=")
+
+
+def print_title(i3):
+    """Print the focused window's title for sway-status's title segment.
+    Prints an empty line when there's no focused *window* -- e.g. an empty
+    workspace, where find_focused() returns the workspace container itself
+    (not a window), whose .name is the workspace's own name/number rather
+    than a title. Checking .window/.app_id (only set on real window
+    containers, X11/Wayland respectively) distinguishes that case.
+    LIVE-VERIFY against an actual empty-workspace focus."""
+    focused = i3.get_tree().find_focused()
+    if focused is not None and (focused.window or focused.app_id):
+        print(focused.name or "")
+    else:
+        print("")
 
 
 def run_daemon():
@@ -707,10 +721,10 @@ def run_daemon():
     i3.on(Event.WINDOW_FLOATING, guarded(on_window_floating))
     i3.on(Event.WINDOW_MOVE, guarded(on_window_move))
     # Not a tiling-invariant concern -- print_status reports the FOCUSED
-    # workspace's mode, so switching workspaces (Mod+1-5, native sway
+    # workspace's mode, so switching workspaces (Mod+1-9, native sway
     # command, no daemon involvement otherwise) can change what the bar
     # should show even though no mark anywhere changed.
-    i3.on(Event.WORKSPACE_FOCUS, guarded(lambda i3conn, event: signal_waybar()))
+    i3.on(Event.WORKSPACE_FOCUS, guarded(lambda i3conn, event: signal_status()))
     i3.main()
 
 
@@ -734,8 +748,10 @@ def main():
         exit_monocle(Connection())
     elif args[0] == "status":
         print_status(Connection())
+    elif args[0] == "title":
+        print_title(Connection())
     else:
-        print(f"usage: {sys.argv[0]} [cycle|monocle|tile|status]", file=sys.stderr)
+        print(f"usage: {sys.argv[0]} [cycle|monocle|tile|status|title]", file=sys.stderr)
         sys.exit(1)
 
 
